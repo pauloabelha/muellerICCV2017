@@ -2,10 +2,19 @@ import cv2
 import numpy as np
 import io_data
 import camera
-from matplotlib import pyplot as plt
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    print("Ignoring matplotlib import error")
+    pass
 from torch.autograd import Variable
 import torch
-from torchviz import make_dot
+try:
+    from torchviz import make_dot
+except ImportError:
+    print("Ignoring torchviz import error")
+    pass
+
 
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):

@@ -10,7 +10,8 @@ import shutil
 import torch.optim as optim
 
 
-ORIG_DATASET_ROOT_FOLDER = '/home/paulo/SynthHands_Release/'
+ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
+ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
 HALNET_DATA_FILENAME = "HALNet_data.p"
 #DATASET_PATH = "/home/paulo/synthhands/example_data/"
 # resolution in rows x cols
@@ -41,7 +42,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 
 def load_dataset_split():
-    return pickle.load(open("dataset_split_files.p", "rb"))
+    return pickle.load(open(ROOT_FOLDER + "dataset_split_files.p", "rb"))
 
 def save_dataset_split(orig_dataset_root_folder=ORIG_DATASET_ROOT_FOLDER,
                        perc_train=0.9, perc_valid=0.05, perc_test=0.05):
