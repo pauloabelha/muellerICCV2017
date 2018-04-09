@@ -7,7 +7,7 @@ from torch.utils.data.dataset import Dataset
 import HALNet_torch
 import shutil
 import torch.optim as optim
-from scipy import ndimage
+from scipy import misc
 
 
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
@@ -452,7 +452,8 @@ def _read_label(label_filepath):
     return np.reshape(first_line_nums, (NUM_JOINTS, 3)).astype(float)
 
 def _downsample_image(image, new_res):
-    return cv2.resize(image, new_res)
+    return misc.imresize(image, new_res)
+    #return cv2.resize(image, new_res)
 
 
 def _read_RGB_image(image_filepath, new_res=None):
@@ -462,9 +463,10 @@ def _read_RGB_image(image_filepath, new_res=None):
     :param image_filepath: path to image file
     :return: opencv image object
     '''
-    image = cv2.imread(image_filepath, cv2.IMREAD_UNCHANGED)
-    if len(image.shape) > 2 and image.shape[2] == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = misc.imread(image_filepath)
+    # COLOR_BGR2RGB requried when working with OpenCV
+    # if len(image.shape) > 2 and image.shape[2] == 3:
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     if new_res:
         image = _downsample_image(image, (new_res[1], new_res[0]))
     #image = np.swapaxes(image, 0, 1)

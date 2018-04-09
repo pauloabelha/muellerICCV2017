@@ -1,3 +1,4 @@
+import sys
 import HALNet2_torch
 import optimizers as my_optimizers
 import torch
@@ -12,7 +13,8 @@ import visualize
 import losses as my_losses
 import debugger
 
-f = open('output.txt','w'); sys.stdout = f
+f = open('output.txt', 'w')
+sys.stdout = f
 
 LOAD_MODEL_FILENAME = 'checkpoint_model_log.pth.tar'
 LOAD_RESNET = False
