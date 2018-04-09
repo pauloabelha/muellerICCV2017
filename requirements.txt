@@ -12,7 +12,6 @@ nltk==3.2.5
 numpy==1.14.2
 olefile==0.45.1
 Pillow==5.0.0
-pip==9.0.3
 pycparser==2.18
 pyparsing==2.2.0
 python-dateutil==2.7.0
@@ -20,10 +19,9 @@ pytorchviz==0.0.1
 pytz==2018.3
 PyYAML==3.12
 requests==2.18.4
+scipy==1.0.1
 sets==0.3.2
-setuptools==38.5.1
 six==1.11.0
 torch==0.3.1.post2
 torchvision==0.2.0
 urllib3==1.22
-wheel==0.30.0
