@@ -22,18 +22,47 @@ NUM_LOSSES = 4
 LOSSES_RES = [(320, 240), (160, 120), (160, 120), (40, 30)]
 NUM_JOINTS = 21
 
-def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALNet):
+def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALNet,
+                    num_iter=0, log_interval=0, log_interval_valid=0, batch_size=0, max_mem_batch=0):
     # load file
     torch_file = torch.load(filename)
     # load model
     model_state_dict = torch_file['model_state_dict']
-    halnet = model_class(torch_file['joint_ixs'])
+    try:
+        halnet = model_class(torch_file['train_vars']['joint_ixs'])
+    except:
+        halnet = model_class(torch_file['joint_ixs'])
     halnet.load_state_dict(model_state_dict)
     # load optimizer
     optimizer_state_dict = torch_file['optimizer_state_dict']
     optimizer = optim.Adadelta(halnet.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
-    return halnet, optimizer, torch_file
+    try:
+        train_vars = torch_file['train_vars']
+        control_vars = torch_file['control_vars']
+    except:
+        # for older model dicts
+        train_vars = {}
+        train_vars['losses'] = torch_file['losses']
+        train_vars['pixel_losses'] = torch_file['dist_losses']
+        train_vars['pixel_losses_sample'] = torch_file['dist_losses_sample']
+        train_vars['best_loss'] = torch_file['best_loss']
+        train_vars['best_pixel_loss'] = torch_file['best_dist_loss']
+        train_vars['best_pixel_loss_sample'] = torch_file['best_dist_loss_sample']
+        train_vars['best_model_dict'] = {}
+        train_vars['joint_ixs'] = halnet.joint_ixs
+        control_vars = {}
+        control_vars['start_epoch'] = torch_file['epoch']
+        control_vars['start_iter'] = torch_file['curr_iter']
+        control_vars['num_iter'] = num_iter
+        control_vars['best_model_dict'] = {}
+        control_vars['log_interval'] = log_interval
+        control_vars['log_interval_valid'] = log_interval_valid
+        control_vars['batch_size'] = batch_size
+        control_vars['max_mem_batch'] = max_mem_batch
+        control_vars['iter_size'] = int(batch_size / max_mem_batch)
+        control_vars['tot_toc'] = 0
+    return halnet, optimizer, train_vars, control_vars
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
@@ -199,11 +228,12 @@ def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
     for i in range(label_depth_space.shape[0]):
         label_color_space[i, 0], label_color_space[i, 1] \
             = camera.get_joint_in_color_space(label_depth_space[i])
-    labels = np.zeros((len(joint_ixs), LABEL_RESOLUTION_HALNET[1], LABEL_RESOLUTION_HALNET[0]))
+    labels = np.zeros((len(joint_ixs), LABEL_RESOLUTION_HALNET[0], LABEL_RESOLUTION_HALNET[1]))
     labels_ix = 0
     for joint_ix in joint_ixs:
         label = convert_color_space_label_to_heatmap(label_color_space[joint_ix, :], LABEL_RESOLUTION_HALNET)
-        label = np.swapaxes(label, 0, 1).astype(float)
+        #label = np.swapaxes(label, 0, 1)
+        label = label.astype(float)
         labels[labels_ix, :, :] = label
         labels_ix += 1
     labels = torch.from_numpy(labels).float()

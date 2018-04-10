@@ -4,226 +4,108 @@ import optimizers as my_optimizers
 import torch
 from torch.autograd import Variable
 import io_data
-import torch.nn.functional as F
 import numpy as np
-import resnet
+import trainer
 import time
 from magic import display_est_time_loop
-import visualize
 import losses as my_losses
-import debugger
+from debugger import print_verbose
+import argparse
 
-f = open('output.txt', 'w')
-sys.stdout = f
+parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
+parser.add_argument('--num_iter', dest='num_iter', type=int, required=True,
+                    help='Total number of iterations to train')
+parser.add_argument('-c', dest='checkpoint_filepath', default='',
+                    help='Checkpoint file from which to begin training')
+parser.add_argument('--log_interval', dest='log_interval', default=10,
+                    help='Number of iterations interval on which to log'
+                         ' a model checkpoint (default 10)')
+parser.add_argument('--log_interval_valid', dest='log_interval_valid', default=1000,
+                    help='Number of iterations interval on which to log'
+                         ' a model checkpoint for validation (default 1000)')
+parser.add_argument('--num_epochs', dest='num_epochs', default=100,
+                    help='Total number of epochs to train')
+parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
+                    help='Whether to use cuda for training')
+parser.add_argument('-o', dest='output_filepath', default='',
+                    help='Output file for logging')
+parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=True,
+                    help='Verbose mode')
+parser.add_argument('-j', '--joint_ixs', dest='joint_ixs', nargs='+', help='', default=list(range(21)))
+parser.add_argument('--resnet', dest='load_resnet', action='store_true', default=False,
+                    help='Whether to load RESNet weights onto the network when creating it')
+parser.add_argument('--max_mem_batch', dest='max_mem_batch', default=8,
+                    help='Max size of batch given GPU memory (default 8)')
+parser.add_argument('--batch_size', dest='batch_size', default=16,
+                    help='Batch size for training (if larger than max memory batch, training will take '
+                         'the required amount of iterations to complete a batch')
 
-LOAD_MODEL_FILENAME = 'checkpoint_model_log.pth.tar'
-LOAD_RESNET = False
-DEBUGGING_VISUALLY = False
-USE_CUDA = True
+args = parser.parse_args()
 
-# max batch size that GPU can handle
-MAX_MEM_BATCH_SIZE = 8
-# actual batch size wanted
-BATCH_SIZE = 16
-# for adadelta optimizer
+args.joint_ixs = list(map(int, args.joint_ixs))
 
-NUM_ITER_TO_TRAIN = 100000
+if args.use_cuda:
+    print_verbose("Using CUDA", args.verbose)
+else:
+    print_verbose("Not using CUDA", args.verbose)
 
-VERBOSE = True
+if args.output_filepath == '':
+    print_verbose("No output filepath specified", args.verbose)
+else:
+    f = open(args.output_filepath, 'w')
+    sys.stdout = f
 
-LOG_INTERVAL = 10
-LOG_FOR_VALID_INTERVAL = 1000
-NUM_EPOCHS = 100
-
-JOINT_IXS = list(range(21))
-
-
-if LOAD_MODEL_FILENAME == '':
-    START_EPOCH = 0
-    START_ITER = 1
-    losses = []
-    dist_losses = []
-    dist_losses_sample = []
-    best_loss = 1e10
-    best_dist_loss = 1e10
-    best_dist_loss_sample = 1e10
-    best_model_dict = {}
-
-    if VERBOSE:
-        print("Building HALNet network...")
-    halnet = HALNet2_torch.HALNet(joint_ixs=JOINT_IXS, use_cuda=USE_CUDA)
-    if VERBOSE:
-        print("Done building HALNet network")
-    if not USE_CUDA:
-        visualize.save_graph_pytorch_model(halnet,
-                                           model_input_shape=(1, 4, 320, 240),
-                                           folder='', modelname='halnet')
-
-    if LOAD_RESNET:
-        print("Loading RESNet50...")
-        resnet50 = resnet.resnet50(pretrained=True)
-        #visualize.save_graph_pytorch_model(resnet50,
-         #                                  model_input_shape=(1, 3, 227, 227),
-          #                                 folder='', modelname='resnet50')
-        print("Done loading RESNet50")
-
-        # initialize HALNet with RESNet50
-        print("Initializaing HALNet with RESNet50...")
-        # initialize level 1
-        # initialize conv1
-        resnet_weight = resnet50.conv1.weight.data
-        float_tensor = np.random.normal(np.mean(resnet_weight.numpy()),
-                                        np.std(resnet_weight.numpy()),
-                                        (resnet_weight.shape[0],
-                                         1, resnet_weight.shape[2],
-                                         resnet_weight.shape[2]))
-        resnet_weight_numpy = resnet_weight.numpy()
-        resnet_weight = np.concatenate((resnet_weight_numpy, float_tensor), axis=1)
-        resnet_weight = torch.FloatTensor(resnet_weight)
-        halnet.conv1[0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize level 2
-        # initialize res2a
-        resnet_weight = resnet50.layer1[0].conv1.weight.data
-        halnet.res2a.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[0].conv2.weight.data
-        halnet.res2a.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[0].conv3.weight.data
-        halnet.res2a.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[0].downsample[0].weight.data
-        halnet.res2a.left_res[0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize res2b
-        resnet_weight = resnet50.layer1[1].conv1.weight.data
-        halnet.res2b.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[1].conv2.weight.data
-        halnet.res2b.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[1].conv3.weight.data
-        halnet.res2b.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize res2c
-        resnet_weight = resnet50.layer1[2].conv1.weight.data
-        halnet.res2c.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[2].conv2.weight.data
-        halnet.res2c.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer1[2].conv3.weight.data
-        halnet.res2c.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize res3a
-        resnet_weight = resnet50.layer2[0].conv1.weight.data
-        halnet.res3a.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[0].conv2.weight.data
-        halnet.res3a.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[0].conv3.weight.data
-        halnet.res3a.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[0].downsample[0].weight.data
-        halnet.res3a.left_res[0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize res3b
-        resnet_weight = resnet50.layer2[1].conv1.weight.data
-        halnet.res3b.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[1].conv2.weight.data
-        halnet.res3b.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[1].conv3.weight.data
-        halnet.res3b.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        # initialize res3c
-        resnet_weight = resnet50.layer2[2].conv1.weight.data
-        halnet.res3c.right_res[0][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[2].conv2.weight.data
-        halnet.res3c.right_res[2][0]._parameters['weight'].data.copy_(resnet_weight)
-        resnet_weight = resnet50.layer2[2].conv3.weight.data
-        halnet.res3c.right_res[4][0]._parameters['weight'].data.copy_(resnet_weight)
-        print("Done initializaing HALNet with RESNet50")
-        del resnet50
-
+control_vars = trainer.initialize_control_vars(args.num_iter, args.max_mem_batch, args.batch_size,
+                                               args.log_interval, args.log_interval_valid)
+train_vars = trainer.initialize_train_vars(args.joint_ixs)
+if args.checkpoint_filepath == '':
+    print_verbose("Creating network from scratch", args.verbose)
+    halnet = HALNet2_torch.HALNet(args.joint_ixs)
+    print_verbose("Building network...", args.verbose)
+    halnet = HALNet2_torch.HALNet(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda)
+    if args.load_resnet:
+        halnet = trainer.load_resnet_weights_into_HALNet(halnet, args.verbose)
+    print_verbose("Done building network", args.verbose)
     optimizer = my_optimizers.get_adadelta_halnet(halnet)
 else:
-    print("Loading model and optimizer from file: " + LOAD_MODEL_FILENAME)
-    halnet, optimizer, train_dict = io_data.load_checkpoint(filename=LOAD_MODEL_FILENAME,
-                                                            model_class=HALNet2_torch.HALNet)
-    START_EPOCH = train_dict['epoch']
-    START_ITER = train_dict['curr_iter'] + 2
-    losses = train_dict['losses']
-    dist_losses = train_dict['dist_losses']
-    dist_losses_sample = train_dict['dist_losses_sample']
-    best_loss = train_dict['best_loss']
-    best_dist_loss = train_dict['best_dist_loss']
-    # old model trained dicts don't have best_dist_loss_sample
-    try:
-        best_dist_loss_sample = train_dict['best_dist_loss_sample']
-    except:
-        best_dist_loss_sample = 1e10
-    best_model_dict = train_dict
+    print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
+    halnet, optimizer, train_vars, control_vars =\
+        io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=HALNet2_torch.HALNet,
+                                num_iter=100000, log_interval=10,
+                                log_interval_valid=1000, batch_size=16, max_mem_batch=8)
 
-def save_checkpoint(state, filename='checkpoint.pth.tar'):
-    print("\tSaving a checkpoint...")
-    torch.save(state, filename)
-
-def validate(model, valid_loader):
-    # switch to evaluate mode
-    model.eval()
-
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = Variable(data), Variable(target)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.l1_loss(output, target)
-
-def pixel_stdev(norm_heatmap):
-    num_pixels = norm_heatmap.size
-    mean_norm_heatmap = np.mean(norm_heatmap)
-    stdev_norm_heatmap = np.std(norm_heatmap)
-    lower_bound = mean_norm_heatmap - stdev_norm_heatmap
-    upper_bound = mean_norm_heatmap + stdev_norm_heatmap
-    pixel_count_lower = np.where(norm_heatmap >= lower_bound)
-    pixel_count_upper = np.where(norm_heatmap <= upper_bound)
-    pixel_count_mask = pixel_count_lower and pixel_count_upper
-    return np.sqrt(norm_heatmap[pixel_count_mask].size)
-
-def print_target_info(target):
-    if len(target.shape) == 4:
-        target = target[0, :, :, :]
-    target = io_data.convert_torch_dataoutput_to_canonical(target.data.numpy()[0])
-    norm_target = io_data.normalize_output(target)
-    # get joint inference from max of heatmap
-    max_heatmap = np.unravel_index(np.argmax(norm_target, axis=None), norm_target.shape)
-    print("Heamap max: " + str(max_heatmap))
-    # data_image = visualize.add_squares_for_joint_in_color_space(data_image, max_heatmap, color=[0, 50, 0])
-    # sample from heatmap
-    heatmap_sample_flat_ix = np.random.choice(range(len(norm_target.flatten())), 1, p=norm_target.flatten())
-    heatmap_sample_uv = np.unravel_index(heatmap_sample_flat_ix, norm_target.shape)
-    heatmap_mean = np.mean(norm_target)
-    heatmap_stdev = np.std(norm_target)
-    print("Heatmap mean: " + str(heatmap_mean))
-    print("Heatmap stdev: " + str(heatmap_stdev))
-    print("Heatmap pixel standard deviation: " + str(pixel_stdev(norm_target)))
-    heatmap_sample_uv = (int(heatmap_sample_uv[0]), int(heatmap_sample_uv[1]))
-    print("Heatmap sample: " + str(heatmap_sample_uv))
-
-def train(START_ITER_MOD, NUM_ITER_TO_TRAIN, model, optimizer, train_loader, epoch, total_loss, total_dist_losses,
-          total_dist_losses_sample, curr_iter, losses, dist_losses, dist_loss_sample, best_loss, best_dist_loss,
-          best_dist_loss_sample, best_model_dict, tot_toc):
-    tot_iter = int(len(train_loader) / int(BATCH_SIZE/MAX_MEM_BATCH_SIZE))
+def train(model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
-    done = False
-    iter_size = int(BATCH_SIZE/MAX_MEM_BATCH_SIZE)
-    num_batches = len(train_loader)
     for batch_idx, (data, target) in enumerate(train_loader):
-        if batch_idx < int(BATCH_SIZE / MAX_MEM_BATCH_SIZE):
-            print("\rPerforming first iteration; current mini-batch: " +
-                  str(batch_idx+1) + "/" + str(int(BATCH_SIZE / MAX_MEM_BATCH_SIZE)), end='')
+        control_vars['batch_idx'] = batch_idx
+        if batch_idx < control_vars['iter_size']:
+            print_verbose("\rPerforming first iteration; current mini-batch: " +
+                  str(batch_idx+1) + "/" + str(control_vars['iter_size']), verbose, n_tabs=0, erase_line=True)
         # check if arrived at iter to start
-        if curr_iter < START_ITER_MOD:
-            if batch_idx % int(BATCH_SIZE / MAX_MEM_BATCH_SIZE) == 0:
-                print("\rGoing through iterations to arrive at last one saved... " +
-                      str(int(curr_iter*100.0/START_ITER_MOD)) + "% of " +
-                      str(START_ITER_MOD) + " iterations (" +
-                      str(curr_iter) + "/" + str(START_ITER_MOD) + ")", end='')
-                curr_iter += 1
+        if control_vars['curr_epoch_iter'] < control_vars['start_iter_mod']:
+            if batch_idx % control_vars['iter_size'] == 0:
+                print_verbose("\rGoing through iterations to arrive at last one saved... " +
+                      str(int(control_vars['curr_epoch_iter']*100.0/control_vars['start_iter_mod'])) + "% of " +
+                      str(control_vars['start_iter_mod']) + " iterations (" +
+                      str(control_vars['curr_epoch_iter']) + "/" + str(control_vars['start_iter_mod']) + ")",
+                              verbose, n_tabs=0, erase_line=True)
+                control_vars['curr_epoch_iter'] += 1
+                control_vars['curr_iter'] += 1
                 curr_epoch_iter += 1
             continue
         # save checkpoint after final iteration
-        if curr_iter == NUM_ITER_TO_TRAIN:
-            print("\nReached final number of iterations: " + str(NUM_ITER_TO_TRAIN))
-            print("\tSaving final checkpoint...")
-            save_checkpoint(best_model_dict,
-                            filename='final_model_iter_' + str(NUM_ITER_TO_TRAIN) + '.pth.tar')
-            done = True
+        if control_vars['curr_iter'] == control_vars['num_iter']:
+            print_verbose("\nReached final number of iterations: " + str(control_vars['num_iter']), verbose)
+            print_verbose("\tSaving final model checkpoint...", verbose)
+            final_model_dict = {
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'control_vars': control_vars,
+                'train_vars': train_vars,
+            }
+            trainer.save_checkpoint(final_model_dict,
+                            filename='final_model_iter_' + str(control_vars['num_iter']) + '.pth.tar')
+            control_vars['done_training'] = True
             break
         # start time counter
         start = time.time()
@@ -232,36 +114,34 @@ def train(START_ITER_MOD, NUM_ITER_TO_TRAIN, model, optimizer, train_loader, epo
         # visualize if debugging
         # get model output
         output = model(data.cuda())
-        if DEBUGGING_VISUALLY and curr_iter % 10 == 0:
-            debugger.show_target_and_output_to_image_info(data, target, output)
         # accumulate loss for sub-mini-batch
-        loss = my_losses.calculate_loss_main(output, target, iter_size)
+        loss = my_losses.calculate_loss_main(output, target, control_vars['iter_size'])
         loss.backward()
-        total_loss += loss
+        train_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch
-        total_dist_losses = my_losses.accumulate_pixel_dist_loss_multiple(
-            total_dist_losses, output, target, BATCH_SIZE)
-        total_dist_losses_sample = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            total_dist_losses_sample, output, target, BATCH_SIZE)
+        train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
+            train_vars['total_pixel_loss'], output, target, args.batch_size)
+        train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
+            train_vars['total_pixel_loss_sample'], output, target, args.batch_size)
         # get boolean variable stating whether a mini-batch has been completed
-        minibatch_completed = (batch_idx+1) % int(BATCH_SIZE / MAX_MEM_BATCH_SIZE) == 0
+        minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
             # optimise for mini-batch
             optimizer.step()
             # clear optimiser
             optimizer.zero_grad()
             # append loss
-            losses.append(total_loss.data[0])
+            train_vars['losses'].append(train_vars['total_loss'].data[0])
             # erase loss
-            total_loss = 0
+            train_vars['total_loss'] = 0
             # append dist loss
-            dist_losses.append(total_dist_losses)
+            train_vars['pixel_losses'].append(train_vars['total_pixel_loss'])
             # erase pixel dist loss
-            total_dist_losses = [0] * len(model.joint_ixs)
+            train_vars['total_pixel_loss'] = [0] * len(model.joint_ixs)
             # append dist loss of sample from output
-            dist_losses_sample.append(total_dist_losses_sample)
+            train_vars['pixel_losses_sample'].append(train_vars['total_pixel_loss_sample'])
             # erase dist loss of sample from output
-            total_dist_losses_sample = [0] * len(model.joint_ixs)
+            train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
             # check if dist loss is better
             '''
             if dist_losses[-1] < best_dist_loss:
@@ -272,158 +152,122 @@ def train(START_ITER_MOD, NUM_ITER_TO_TRAIN, model, optimizer, train_loader, epo
                 print("  This is a best pixel dist loss (from sample) found so far: " + str(dist_losses_sample[-1]))
                 '''
             # check if loss is better
-            if losses[-1] < best_loss:
-                best_loss = losses[-1]
-                print("  This is a best loss found so far: " + str(losses[-1]))
-                best_model_dict = {
-                    'batch_size': BATCH_SIZE,
+            if train_vars['losses'][-1] < train_vars['best_loss']:
+                train_vars['best_loss'] = train_vars['losses'][-1]
+                print_verbose("  This is a best loss found so far: " + str(train_vars['losses'][-1]), verbose)
+                train_vars['best_model_dict'] = {
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'losses': losses,
-                    'dist_losses': dist_losses,
-                    'dist_losses_sample': dist_losses_sample,
-                    'best_loss': best_loss,
-                    'best_dist_loss': best_dist_loss,
-                    'best_dist_loss_sample': best_dist_loss_sample,
-                    'epoch': epoch,
-                    'curr_epoch_iter': curr_epoch_iter,
-                    'curr_iter': curr_iter,
-                    'batch_idx': batch_idx,
-                    'joint_ixs': model.joint_ixs
+                    'control_vars': control_vars,
+                    'train_vars': train_vars,
                 }
             # log checkpoint
-            if curr_iter % LOG_INTERVAL == 0:
-                print("")
-                print("-------------------------------------------------------------------------------------------")
-                print("Saving checkpoints:")
-                print("-------------------------------------------------------------------------------------------")
-                save_checkpoint(best_model_dict, filename='best_model_log.pth.tar')
+            if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
+                print_verbose("", verbose)
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                print_verbose("Saving checkpoints:", verbose)
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                trainer.save_checkpoint(train_vars['best_model_dict'], filename='best_model_log.pth.tar')
                 checkpoint_model_dict = {
-                    'batch_size': BATCH_SIZE,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'losses': losses,
-                    'dist_losses': dist_losses,
-                    'dist_losses_sample': dist_losses_sample,
-                    'best_loss': best_loss,
-                    'best_dist_loss': best_dist_loss,
-                    'best_dist_loss_sample': best_dist_loss_sample,
-                    'epoch': epoch,
-                    'curr_epoch_iter': curr_epoch_iter,
-                    'curr_iter': curr_iter,
-                    'batch_idx': batch_idx,
-                    'joint_ixs': model.joint_ixs
+                    'control_vars': control_vars,
+                    'train_vars': train_vars,
                 }
-                save_checkpoint(checkpoint_model_dict, filename='checkpoint_model_log.pth.tar')
-                print("-------------------------------------------------------------------------------------------")
-                print("Main loss:")
-                print("-------------------------------------------------------------------------------------------")
-                print("Training set mean error for last " + str(LOG_INTERVAL) +
-                      " iterations (average loss): " + str(np.mean(losses[-LOG_INTERVAL:])))
-                print("This is the last loss: " + str(losses[-1]))
-                print("-------------------------------------------------------------------------------------------")
-                print("Joint pixel losses:")
-                print("-------------------------------------------------------------------------------------------")
+                trainer.save_checkpoint(checkpoint_model_dict, filename='checkpoint_model_log.pth.tar')
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                print_verbose("Main loss:", verbose)
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
+                      " iterations (average loss): " + str(np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose)
+                print_verbose("This is the last loss: " + str(train_vars['losses'][-1]), verbose)
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                print_verbose("Joint pixel losses:", verbose)
+                print_verbose("-------------------------------------------------------------------------------------------", verbose)
                 for joint_ix in model.joint_ixs:
-                    print("\tJoint index: " + str(joint_ix))
-                    print("\tTraining set mean error for last " + str(LOG_INTERVAL) +
+                    print_verbose("\tJoint index: " + str(joint_ix), verbose)
+                    print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss): " +
-                          str(np.mean(np.array(dist_losses)[-LOG_INTERVAL:, joint_ix])))
-                    print("\tTraining set stddev error for last " + str(LOG_INTERVAL) +
+                          str(np.mean(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose)
+                    print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss): " +
-                          str(np.std(np.array(dist_losses)[-LOG_INTERVAL:, joint_ix])))
-                    print("\tThis is the last pixel dist loss: " + str(dist_losses[-1][joint_ix]))
-                    print("\tTraining set mean error for last " + str(LOG_INTERVAL) +
+                          str(np.std(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose)
+                    print_verbose("\tThis is the last pixel dist loss: " + str(train_vars['pixel_losses'][-1][joint_ix]), verbose)
+                    print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss of sample): " +
-                          str(np.mean(np.array(dist_losses_sample)[-LOG_INTERVAL:, joint_ix])))
-                    print("\tTraining set stddev error for last " + str(LOG_INTERVAL) +
+                          str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
+                    print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss of sample): " +
-                          str(np.mean(np.array(dist_losses_sample)[-LOG_INTERVAL:, joint_ix])))
-                    print("\tThis is the last pixel dist loss of sample: " + str(dist_losses_sample[-1][joint_ix]))
-                    print("\t-------------------------------------------------------------------------------------------")
-                print("-------------------------------------------------------------------------------------------")
-            if curr_iter % LOG_FOR_VALID_INTERVAL == 0:
-                print("\nSaving model and checkpoint model for validation")
+                          str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
+                    print_verbose("\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]), verbose)
+                    print_verbose("\t-------------------------------------------------------------------------------------------", verbose)
+                    print_verbose("-------------------------------------------------------------------------------------------", verbose)
+            if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
+                print_verbose("\nSaving model and checkpoint model for validation", verbose)
                 checkpoint_model_dict = {
-                    'batch_size': BATCH_SIZE,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'losses': losses,
-                    'dist_losses': dist_losses,
-                    'dist_losses_sample': dist_losses_sample,
-                    'best_loss': best_loss,
-                    'best_dist_loss': best_dist_loss,
-                    'best_dist_loss_sample': best_dist_loss_sample,
-                    'epoch': epoch,
-                    'curr_epoch_iter': curr_epoch_iter,
-                    'curr_iter': curr_iter,
-                    'batch_idx': batch_idx,
-                    'joint_ixs': model.joint_ixs
+                    'control_vars': control_vars,
+                    'train_vars': train_vars,
                 }
-                save_checkpoint(checkpoint_model_dict, filename='checkpoint_model_log_for_valid_'
-                                                                + str(curr_iter) + '.pth.tar')
+                trainer.save_checkpoint(checkpoint_model_dict, filename='checkpoint_model_log_for_valid_' +
+                                                                        str(control_vars['curr_iter']) + '.pth.tar')
             # print time lapse
-            tot_toc = display_est_time_loop(tot_toc + time.time() - start,
-                                                curr_iter, NUM_ITER_TO_TRAIN,
-                                                prefix='Training '
-                                                       '(Epoch #' + str(epoch) +
-                                                       ' ' + str(curr_epoch_iter) + '/' + str(tot_iter) + ')' +
-                                                       ', (Batch ' + str(batch_idx) + '/' + str(num_batches) + ')' +
-                                                       ', (Iter #' + str(curr_iter) +
-                                                       ' - log every ' + str(LOG_INTERVAL) + ' iter): ')
-            curr_iter += 1
+            prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(curr_epoch_iter) + '/' +\
+                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']) + '/' +\
+                     str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) +\
+                     ' - log every ' + str(control_vars['log_interval']) + ' iter): '
+            control_vars['tot_toc'] = display_est_time_loop(control_vars['tot_toc'] + time.time() - start,
+                                                            control_vars['curr_iter'], control_vars['num_iter'],
+                                                            prefix=prefix)
+            control_vars['curr_iter'] += 1
+            control_vars['start_iter'] = control_vars['curr_iter'] + 1
             curr_epoch_iter += 1
-    return curr_iter, done, losses, dist_losses, dist_loss_sample,\
-           best_loss, best_dist_loss, best_dist_loss_sample, best_model_dict, tot_toc
+    return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
 train_loader = io_data.get_HALNet_trainloader(joint_ixs=halnet.joint_ixs,
-                                              batch_size=MAX_MEM_BATCH_SIZE,
-                                              verbose=VERBOSE)
+                                              batch_size=args.max_mem_batch,
+                                              verbose=args.verbose)
+control_vars['num_batches'] = len(train_loader)
+control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
 
-tot_iter = int(len(train_loader) / int(BATCH_SIZE/MAX_MEM_BATCH_SIZE))
-START_ITER_MOD = START_ITER % tot_iter
-curr_iter = 1
-start_batch_idx = START_ITER * int(BATCH_SIZE/MAX_MEM_BATCH_SIZE)
+control_vars['tot_iter'] = int(len(train_loader) / control_vars['iter_size'])
+control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
+
+print_verbose("-----------------------------------------------------------", args.verbose)
+print_verbose("Model info", args.verbose)
+print_verbose("Number of joints: " + str(len(halnet.joint_ixs)), args.verbose)
+print_verbose("Joints indexes: " + str(halnet.joint_ixs), args.verbose)
+print_verbose("-----------------------------------------------------------", args.verbose)
+print_verbose("Max memory batch size: " + str(args.max_mem_batch), args.verbose)
+print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), args.verbose)
+print_verbose("Training batch size: " + str(args.batch_size), args.verbose)
+print_verbose("Starting epoch: " + str(control_vars['start_epoch']), args.verbose)
+print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), args.verbose)
+print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), args.verbose)
+print_verbose("-----------------------------------------------------------", args.verbose)
+print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), args.verbose)
+print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), args.verbose)
+print_verbose("Approximate number of epochs to train: " +
+              str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), args.verbose)
+print_verbose("-----------------------------------------------------------", args.verbose)
 
 halnet.train()
-tot_toc = 0
-print("-----------------------------------------------------------")
-print("Model info")
-print("Number of joints: " + str(len(halnet.joint_ixs)))
-print("Joints indexes: " + str(halnet.joint_ixs))
-print("-----------------------------------------------------------")
-print("Max memory batch size: " + str(MAX_MEM_BATCH_SIZE))
-print("Length of dataset (in max mem batch size): " + str(len(train_loader)))
-print("Starting batch idx: " + str(start_batch_idx))
-print("-----------------------------------------------------------")
-print("Training batch size: " + str(BATCH_SIZE))
-n_iter_per_epoch = int(len(train_loader) / int(BATCH_SIZE/MAX_MEM_BATCH_SIZE))
-print("Starting epoch: " + str(START_EPOCH))
-print("Starting epoch iteration: " + str(START_ITER_MOD))
-print("Starting overall iteration: " + str(START_ITER))
-print("-----------------------------------------------------------")
-print("Number of iterations per epoch: " + str(n_iter_per_epoch))
-print("Number of iterations to train: " + str(NUM_ITER_TO_TRAIN))
-print("Approximate number of epochs to train: " + str(round(NUM_ITER_TO_TRAIN/n_iter_per_epoch, 1)))
-print("-----------------------------------------------------------")
-
-for epoch in range(NUM_EPOCHS):
-    if epoch + 1 < START_EPOCH:
-        curr_iter += n_iter_per_epoch
+control_vars['curr_epoch_iter'] = 1
+control_vars['curr_iter'] = 1
+for epoch in range(args.num_epochs):
+    if epoch + 1 < control_vars['start_epoch']:
+        print_verbose("Advancing through epochs: " + str(epoch + 1), args.verbose, erase_line=True)
+        control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
         continue
-    total_loss = 0
-    total_dist_losses = [0] * len(halnet.joint_ixs)
-    total_dist_losses_sample = [0] * len(halnet.joint_ixs)
+    train_vars['total_loss'] = 0
+    train_vars['total_pixel_loss'] = [0] * len(halnet.joint_ixs)
+    train_vars['total_pixel_loss_sample'] = [0] * len(halnet.joint_ixs)
     optimizer.zero_grad()
-    curr_iter, done, losses, dist_losses, dist_losses_sample, best_loss, best_dist_loss, best_dist_loss_sample,\
-    best_model_dict, tot_toc =\
-        train(START_ITER_MOD, NUM_ITER_TO_TRAIN, halnet, optimizer, train_loader, epoch + 1, total_loss,
-              total_dist_losses, total_dist_losses_sample, curr_iter, losses, dist_losses, dist_losses_sample,
-              best_loss, best_dist_loss, best_dist_loss_sample, best_model_dict, tot_toc)
-    if done:
+    train_vars, control_vars = train(halnet, optimizer, train_vars, control_vars, args.verbose)
+    if control_vars['done_training']:
         break
-    if epoch + 1 >= START_EPOCH:
+    if epoch + 1 >= control_vars['start_epoch']:
         for param_group in optimizer.param_groups:
            param_group['lr'] = param_group['lr']*0.5
