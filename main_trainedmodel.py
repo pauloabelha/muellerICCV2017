@@ -3,12 +3,11 @@ import io_data
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-import probs
 import time
 from magic import display_est_time_loop
 import debugger
 import losses as my_losses
-import HALNet2_torch
+import JORNet
 import math
 
 VERBOSE = True
@@ -143,18 +142,18 @@ def show_hist_quant_results(results, xlabel='', ylabel='', title=''):
     plt.grid(True)
     plt.show()
 
-halnet, optimizer, trained_dict = io_data.load_checkpoint(filename='checkpoint_model_log.pth.tar',
-                                                          model_class=HALNet2_torch.HALNet)
-START_ITER = trained_dict['curr_iter'] + 1
+halnet, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='checkpoint_model_log.pth.tar',
+                                                                      model_class=JORNet.HALNet)
+START_ITER = control_vars['curr_iter'] + 1
 
-print("Validating model that was trained for " + str(trained_dict['curr_iter']) + " iterations")
+print("Validating model that was trained for " + str(control_vars['curr_iter']) + " iterations")
 
 # plot train losses
 if DEBUGGING_VISUALLY:
-    main_losses = trained_dict['losses']
+    main_losses = train_vars['losses']
     main_losses = np.divide(main_losses, math.log(2))
     main_loss_handle, = plt.plot(main_losses, label='Total loss (bits)')
-    dist_losses = trained_dict['dist_losses']
+    dist_losses = train_vars['pixel_losses']
     dist_losses = np.array(dist_losses)
     plot_handles = [main_loss_handle]
     for j in range(dist_losses.shape[1]):

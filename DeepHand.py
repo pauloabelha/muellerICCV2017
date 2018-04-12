@@ -12,7 +12,7 @@ import math
 def _print_layer_output_shape(layer_name, output_shape):
     print("Layer " + layer_name + " output shape: " + str(output_shape))
 
-def HALNetConvBlock(kernel_size, stride, filters, in_channels, padding=0):
+def DeepHandConvBlock(kernel_size, stride, filters, in_channels, padding=0):
     return nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=filters,
                       kernel_size=kernel_size, stride=stride,
@@ -20,7 +20,7 @@ def HALNetConvBlock(kernel_size, stride, filters, in_channels, padding=0):
             nn.BatchNorm2d(num_features=filters)
         )
 
-def HALNetResConvSequence(stride, filters1, filters2,
+def DeepHandResConvSequence(stride, filters1, filters2,
                           padding1=1, padding2=0, padding3=0,
                           first_in_channels=0):
     if first_in_channels == 0:
@@ -28,21 +28,21 @@ def HALNetResConvSequence(stride, filters1, filters2,
     return nn.Sequential(
         # added padding = 1 to make shapes fit when joining
         # with left module
-        HALNetConvBlock(kernel_size=1, stride=stride, filters=filters1,
+        DeepHandConvBlock(kernel_size=1, stride=stride, filters=filters1,
                         in_channels=first_in_channels, padding=padding1),
         nn.ReLU(),
-        HALNetConvBlock(kernel_size=3, stride=1, filters=filters1,
+        DeepHandConvBlock(kernel_size=3, stride=1, filters=filters1,
                         in_channels=filters1, padding=padding2),
         nn.ReLU(),
-        HALNetConvBlock(kernel_size=1, stride=1, filters=filters2,
+        DeepHandConvBlock(kernel_size=1, stride=1, filters=filters2,
                         in_channels=filters1, padding=padding3)
     )
 
-class HALNetResBlockIDSkip(nn.Module):
+class DeepHandResBlockIDSkip(nn.Module):
     def __init__(self, filters1, filters2,
                  padding_right1=1, padding_right2=0, padding_right3=0):
-        super(HALNetResBlockIDSkip, self).__init__()
-        self.right_res = HALNetResConvSequence(stride=1,
+        super(DeepHandResBlockIDSkip, self).__init__()
+        self.right_res = DeepHandResConvSequence(stride=1,
                                                filters1=filters1,
                                                filters2=filters2,
                                                padding1=padding_right1,
@@ -60,18 +60,18 @@ class HALNetResBlockIDSkip(nn.Module):
         out = self.relu(out)
         return out
 
-class HALNetResBlockConv(nn.Module):
+class DeepHandResBlockConv(nn.Module):
     def __init__(self, stride, filters1, filters2, first_in_channels=0,
                  padding_left=0, padding_right1=0, padding_right2=0,
                  padding_right3=0):
-        super(HALNetResBlockConv, self).__init__()
+        super(DeepHandResBlockConv, self).__init__()
         if first_in_channels == 0:
             first_in_channels = filters1
-        self.left_res = HALNetConvBlock(kernel_size=1, stride=stride,
+        self.left_res = DeepHandConvBlock(kernel_size=1, stride=stride,
                                         filters=filters2,
                                         padding=padding_left,
                                         in_channels=first_in_channels)
-        self.right_res = HALNetResConvSequence(stride=stride,
+        self.right_res = DeepHandResConvSequence(stride=stride,
                                                filters1=filters1,
                                                filters2=filters2,
                                                padding1=padding_right1,
@@ -125,7 +125,7 @@ class SoftmaxLogProbability2D(torch.nn.Module):
 def cudafy(object):
     return object.cuda()
 
-class HALNet(nn.Module):
+class DeepHand(nn.Module):
 
     joint_ixs = []
     VERBOSE = False
@@ -135,31 +135,31 @@ class HALNet(nn.Module):
     WEIGHT_LOSS_MAIN = 1
 
     def __init__(self, joint_ixs, use_cuda=True):
-        super(HALNet, self).__init__()
+        super(DeepHand, self).__init__()
         self.joint_ixs = joint_ixs
-        self.conv1 = HALNetConvBlock(kernel_size=7, stride=1, filters=64,
+        self.conv1 = DeepHandConvBlock(kernel_size=7, stride=1, filters=64,
                                      in_channels=4, padding=3)
         if use_cuda:
             self.conv1 = cudafy(self.conv1)
         self.mp1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         if use_cuda:
             self.mp1 = cudafy(self.mp1)
-        self.res2a = HALNetResBlockConv(stride=1, filters1=64, filters2=256,
+        self.res2a = DeepHandResBlockConv(stride=1, filters1=64, filters2=256,
                                         padding_right1=1)
         if use_cuda:
             self.res2a = cudafy(self.res2a)
-        self.res2b = HALNetResBlockIDSkip(filters1=64, filters2=256)
+        self.res2b = DeepHandResBlockIDSkip(filters1=64, filters2=256)
         if use_cuda:
             self.res2b = cudafy(self.res2b)
-        self.res2c = HALNetResBlockIDSkip(filters1=64, filters2=256)
+        self.res2c = DeepHandResBlockIDSkip(filters1=64, filters2=256)
         if use_cuda:
             self.res2c = cudafy(self.res2c)
-        self.res3a = HALNetResBlockConv(stride=2, filters1=128, filters2=512,
+        self.res3a = DeepHandResBlockConv(stride=2, filters1=128, filters2=512,
                                         padding_right3=1,
                                         first_in_channels=256)
         if use_cuda:
             self.res3a = cudafy(self.res3a)
-        self.interm_loss1 = HALNetConvBlock(kernel_size=3, stride=1,
+        self.interm_loss1 = DeepHandConvBlock(kernel_size=3, stride=1,
                                               filters=1, in_channels=512,
                                               padding=1)
         if use_cuda:
@@ -170,18 +170,18 @@ class HALNet(nn.Module):
         self.interm_loss1_softmax = SoftmaxLogProbability2D()
         if use_cuda:
             self.interm_loss1_softmax = cudafy(self.interm_loss1_softmax)
-        self.res3b = HALNetResBlockIDSkip(filters1=128, filters2=512)
+        self.res3b = DeepHandResBlockIDSkip(filters1=128, filters2=512)
         if use_cuda:
             self.res3b = cudafy(self.res3b)
-        self.res3c = HALNetResBlockIDSkip(filters1=128, filters2=512)
+        self.res3c = DeepHandResBlockIDSkip(filters1=128, filters2=512)
         if use_cuda:
             self.res3c = cudafy(self.res3c)
-        self.res4a = HALNetResBlockConv(stride=2, filters1=256, filters2=1024,
+        self.res4a = DeepHandResBlockConv(stride=2, filters1=256, filters2=1024,
                                         padding_right3=1,
                                         first_in_channels=512)
         if use_cuda:
             self.res4a = cudafy(self.res4a)
-        self.interm_loss2 = HALNetConvBlock(kernel_size=3, stride=1,
+        self.interm_loss2 = DeepHandConvBlock(kernel_size=3, stride=1,
                                             filters=1, in_channels=1024,
                                             padding=1)
         if use_cuda:
@@ -192,20 +192,20 @@ class HALNet(nn.Module):
         self.interm_loss2_softmax = SoftmaxLogProbability2D()
         if use_cuda:
             self.interm_loss2_softmax = cudafy(self.interm_loss2_softmax)
-        self.res4b = HALNetResBlockIDSkip(filters1=256, filters2=1024)
+        self.res4b = DeepHandResBlockIDSkip(filters1=256, filters2=1024)
         if use_cuda:
             self.res4b = cudafy(self.res4b)
-        self.res4c = HALNetResBlockIDSkip(filters1=256, filters2=1024)
+        self.res4c = DeepHandResBlockIDSkip(filters1=256, filters2=1024)
         if use_cuda:
             self.res4c = cudafy(self.res4c)
-        self.res4d = HALNetResBlockIDSkip(filters1=256, filters2=1024)
+        self.res4d = DeepHandResBlockIDSkip(filters1=256, filters2=1024)
         if use_cuda:
             self.res4d = cudafy(self.res4d)
-        self.conv4e = HALNetConvBlock(kernel_size=3, stride=1, filters=512,
+        self.conv4e = DeepHandConvBlock(kernel_size=3, stride=1, filters=512,
                                      in_channels=1024, padding=1)
         if use_cuda:
             self.conv4e = cudafy(self.conv4e)
-        self.interm_loss3 = HALNetConvBlock(kernel_size=3, stride=1,
+        self.interm_loss3 = DeepHandConvBlock(kernel_size=3, stride=1,
                                             filters=1, in_channels=512,
                                             padding=1)
         if use_cuda:
@@ -216,12 +216,12 @@ class HALNet(nn.Module):
         self.interm_loss3_softmax = SoftmaxLogProbability2D()
         if use_cuda:
             self.interm_loss3_softmax = cudafy(self.interm_loss3_softmax)
-        self.conv4f = HALNetConvBlock(kernel_size=3, stride=1, filters=256,
+        self.conv4f = DeepHandConvBlock(kernel_size=3, stride=1, filters=256,
                                       in_channels=512, padding=1)
         if use_cuda:
             self.conv4f = cudafy(self.conv4f)
         NUM_HEATMAPS = len(self.joint_ixs)
-        self.main_loss_conv = HALNetConvBlock(kernel_size=3, stride=1,
+        self.main_loss_conv = DeepHandConvBlock(kernel_size=3, stride=1,
                                               filters=NUM_HEATMAPS, in_channels=256,
                                               padding=1)
         if use_cuda:

@@ -8,7 +8,10 @@ import HALNet_torch
 import shutil
 import torch.optim as optim
 from scipy import misc
-
+try:
+    import cv2
+except:
+    pass
 
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
 ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
@@ -29,13 +32,14 @@ def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALN
     # load model
     model_state_dict = torch_file['model_state_dict']
     try:
-        halnet = model_class(torch_file['train_vars']['joint_ixs'])
+        joint_ixs = torch_file['train_vars']['joint_ixs']
     except:
-        halnet = model_class(torch_file['joint_ixs'])
-    halnet.load_state_dict(model_state_dict)
+        joint_ixs = torch_file['joint_ixs']
+    model = model_class(joint_ixs)
+    model.load_state_dict(model_state_dict)
     # load optimizer
     optimizer_state_dict = torch_file['optimizer_state_dict']
-    optimizer = optim.Adadelta(halnet.parameters())
+    optimizer = optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
     try:
         train_vars = torch_file['train_vars']
@@ -50,7 +54,7 @@ def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALN
         train_vars['best_pixel_loss'] = torch_file['best_dist_loss']
         train_vars['best_pixel_loss_sample'] = torch_file['best_dist_loss_sample']
         train_vars['best_model_dict'] = {}
-        train_vars['joint_ixs'] = halnet.joint_ixs
+        train_vars['joint_ixs'] = joint_ixs
         control_vars = {}
         control_vars['start_epoch'] = torch_file['epoch']
         control_vars['start_iter'] = torch_file['curr_iter']
@@ -62,7 +66,7 @@ def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALN
         control_vars['max_mem_batch'] = max_mem_batch
         control_vars['iter_size'] = int(batch_size / max_mem_batch)
         control_vars['tot_toc'] = 0
-    return halnet, optimizer, train_vars, control_vars
+    return model, optimizer, train_vars, control_vars
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
@@ -136,7 +140,7 @@ def normalize_output(output):
     return norm_output
 
 def convert_torch_targetheatmap_to_canonical(target_heatmap):
-    target_heatmap = np.swapaxes(target_heatmap, 0, 1)
+    #target_heatmap = np.swapaxes(target_heatmap, 0, 1)
     assert target_heatmap.shape[0] == LABEL_RESOLUTION_HALNET[0]
     assert target_heatmap.shape[1] == LABEL_RESOLUTION_HALNET[1]
     return target_heatmap
@@ -156,7 +160,8 @@ def convert_torch_dataimage_to_canonical(data):
     image = data[0:3, :, :]
     # put channels at the end
     image = image.astype(np.uint8)
-    image = np.swapaxes(image, 0, 2)
+    image = np.swapaxes(image, 0, 1)
+    image = np.swapaxes(image, 1, 2)
     assert image.shape[0] == IMAGE_RES_HALNET[0]
     assert image.shape[1] == IMAGE_RES_HALNET[1]
     assert image.shape[2] == 3
@@ -203,9 +208,7 @@ def _load_dicts_color_depth_labels(root_dir):
     return color_on_depth_images_dict, depth_images_dict, \
            labels_dict, filenamebase_keys
 
-def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
-                      depth_images_dict, filenamebase_keys, joint_ixs):
-    filenamebase_key = filenamebase_keys[idx]
+def _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict):
     # load color
     color_on_depth_image_filename = color_on_depth_images_dict[filenamebase_key]
     color_on_depth_image = \
@@ -222,6 +225,9 @@ def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
     RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
     data = np.swapaxes(RGBD_image, 0, 2).astype(np.float)
     data = torch.from_numpy(data).float()
+    return data
+
+def _get_labels(filenamebase_key, labels_dict, joint_ixs):
     # get label
     label_depth_space = _read_label(labels_dict[filenamebase_key])
     label_color_space = np.zeros((label_depth_space.shape[0], 2))
@@ -230,16 +236,26 @@ def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
             = camera.get_joint_in_color_space(label_depth_space[i])
     labels = np.zeros((len(joint_ixs), LABEL_RESOLUTION_HALNET[0], LABEL_RESOLUTION_HALNET[1]))
     labels_ix = 0
+    labels_joints = np.zeros((len(joint_ixs)*3, ))
     for joint_ix in joint_ixs:
         label = convert_color_space_label_to_heatmap(label_color_space[joint_ix, :], LABEL_RESOLUTION_HALNET)
-        #label = np.swapaxes(label, 0, 1)
         label = label.astype(float)
         labels[labels_ix, :, :] = label
+        # joint labels
+        labels_joints[labels_ix*3:(labels_ix*3)+3] = label_depth_space[joint_ix, :]
         labels_ix += 1
+    labels_joints = torch.from_numpy(labels_joints).float()
     labels = torch.from_numpy(labels).float()
+    return (labels, labels_joints)
+
+def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
+                      depth_images_dict, filenamebase_keys, joint_ixs):
+    filenamebase_key = filenamebase_keys[idx]
+    data = _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict)
+    labels = _get_labels(filenamebase_key, labels_dict, joint_ixs)
     return data, labels
 
-class SynthHandsHALNetDataset(Dataset):
+class SynthHandsDataset(Dataset):
     type = ''
     root_dir = ''
     labels_dict = {}
@@ -248,7 +264,8 @@ class SynthHandsHALNetDataset(Dataset):
     filenamebase_keys = []
     joint_ixs = []
 
-    def __init__(self, joint_ixs):
+    def __init__(self, joint_ixs, type):
+        self.type = type
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split()
         self.filenamebase_keys = dataset_split_files['filenamebase_keys_' + self.type]
@@ -286,24 +303,24 @@ class SynthHandsHALNetDataset(Dataset):
     def __len__(self):
         return len(self.filenamebase_keys)
 
-class SynthHandsHALNetTrainDataset(SynthHandsHALNetDataset):
+class SynthHandsTrainDataset(SynthHandsDataset):
      type = 'train'
 
-class SynthHandsHALNetValidDataset(SynthHandsHALNetDataset):
+class SynthHandsValidDataset(SynthHandsDataset):
     type = 'valid'
 
-class SynthHandsHALNetTestDataset(SynthHandsHALNetDataset):
+class SynthHandsTestDataset(SynthHandsDataset):
     type = 'test'
 
-def _get_HALNet_loader(joint_ixs, verbose, type, batch_size=1):
+def _get_SynthHands_loader(joint_ixs, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
     if type == 'train':
-        dataset = SynthHandsHALNetTrainDataset(joint_ixs)
+        dataset = SynthHandsDataset(joint_ixs, type)
     elif type == 'valid':
-        dataset = SynthHandsHALNetValidDataset(joint_ixs)
+        dataset = SynthHandsDataset(joint_ixs, type)
     elif type == 'test':
-        dataset = SynthHandsHALNetTestDataset(joint_ixs)
+        dataset = SynthHandsDataset(joint_ixs, type)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
     dataset_loader = torch.utils.data.DataLoader(
@@ -312,19 +329,21 @@ def _get_HALNet_loader(joint_ixs, verbose, type, batch_size=1):
         shuffle=False)
     if verbose:
         data_example, label_example = dataset[0]
-        print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) +
-              " examples of shape " + str(data_example.shape) +
-              " and labels of shape " + str(label_example.shape))
+        labels_heatmaps, label_joints = label_example
+        print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
+        print("\tExample shape: " + str(data_example.shape))
+        print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))
+        print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
     return dataset_loader
 
-def get_HALNet_trainloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_HALNet_loader(joint_ixs, verbose, 'train', batch_size)
+def get_SynthHands_trainloader(joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(joint_ixs, verbose, 'train', batch_size)
 
-def get_HALNet_validloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_HALNet_loader(joint_ixs, verbose, 'valid', batch_size)
+def get_SynthHands_validloader(joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(joint_ixs, verbose, 'valid', batch_size)
 
-def get_HALNet_testloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_HALNet_loader(joint_ixs, verbose, 'test', batch_size)
+def get_SynthHands_testloader(joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(joint_ixs, verbose, 'test', batch_size)
 
 
 def get_train_ixs(size, perc_train):
@@ -486,20 +505,27 @@ def _downsample_image(image, new_res):
     #return cv2.resize(image, new_res)
 
 
-def _read_RGB_image(image_filepath, new_res=None):
+def _read_RGB_image_scipy(image_filepath):
+    image = misc.imread(image_filepath)
+    return image
+
+def _read_RGB_image_opencv(image_filepath):
+    image = cv2.imread(image_filepath)
+    # COLOR_BGR2RGB requried when working with OpenCV
+    if len(image.shape) > 2 and image.shape[2] == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return image
+
+def _read_RGB_image(image_filepath, new_res=None, read_image_func=_read_RGB_image_scipy):
     '''
     Reads RGB image from filepath
     Can downsample image after reading (default is not downsampling)
     :param image_filepath: path to image file
     :return: opencv image object
     '''
-    image = misc.imread(image_filepath)
-    # COLOR_BGR2RGB requried when working with OpenCV
-    # if len(image.shape) > 2 and image.shape[2] == 3:
-        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = read_image_func(image_filepath)
     if new_res:
         image = _downsample_image(image, (new_res[1], new_res[0]))
-    #image = np.swapaxes(image, 0, 1)
     return image
 
 def show_image(image):

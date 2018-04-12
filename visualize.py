@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import io_data
 import camera
+
 try:
     from matplotlib import pyplot as plt
 except ImportError:

@@ -1,5 +1,5 @@
 import sys
-import HALNet2_torch
+import JORNet
 import optimizers as my_optimizers
 import torch
 from torch.autograd import Variable
@@ -34,9 +34,9 @@ parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', defa
 parser.add_argument('-j', '--joint_ixs', dest='joint_ixs', nargs='+', help='', default=list(range(21)))
 parser.add_argument('--resnet', dest='load_resnet', action='store_true', default=False,
                     help='Whether to load RESNet weights onto the network when creating it')
-parser.add_argument('--max_mem_batch', dest='max_mem_batch', default=8,
+parser.add_argument('--max_mem_batch', type=int, dest='max_mem_batch', default=8,
                     help='Max size of batch given GPU memory (default 8)')
-parser.add_argument('--batch_size', dest='batch_size', default=16,
+parser.add_argument('--batch_size', type=int, dest='batch_size', default=16,
                     help='Batch size for training (if larger than max memory batch, training will take '
                          'the required amount of iterations to complete a batch')
 
@@ -60,19 +60,18 @@ control_vars = trainer.initialize_control_vars(args.num_iter, args.max_mem_batch
 train_vars = trainer.initialize_train_vars(args.joint_ixs)
 if args.checkpoint_filepath == '':
     print_verbose("Creating network from scratch", args.verbose)
-    halnet = HALNet2_torch.HALNet(args.joint_ixs)
     print_verbose("Building network...", args.verbose)
-    halnet = HALNet2_torch.HALNet(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda)
+    jornet = JORNet.JORNet(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda)
     if args.load_resnet:
-        halnet = trainer.load_resnet_weights_into_HALNet(halnet, args.verbose)
+        jornet = trainer.load_resnet_weights_into_HALNet(jornet, args.verbose)
     print_verbose("Done building network", args.verbose)
-    optimizer = my_optimizers.get_adadelta_halnet(halnet)
+    optimizer = my_optimizers.get_adadelta_halnet(jornet)
 else:
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
-    halnet, optimizer, train_vars, control_vars =\
-        io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=HALNet2_torch.HALNet,
+    jornet, optimizer, train_vars, control_vars =\
+        io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=JORNet.JORNet,
                                 num_iter=100000, log_interval=10,
-                                log_interval_valid=1000, batch_size=16, max_mem_batch=8)
+                                log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
 
 def train(model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -110,19 +109,22 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
         # start time counter
         start = time.time()
         # get data and targetas cuda variables
-        data, target = Variable(data).cuda(), Variable(target).cuda()
+        target_heatmaps, target_joints = target
+        data, target_heatmaps, target_joints = \
+            Variable(data).cuda(), Variable(target_heatmaps).cuda(), Variable(target_joints).cuda()
         # visualize if debugging
         # get model output
-        output = model(data.cuda())
+        output = model(data)
         # accumulate loss for sub-mini-batch
-        loss = my_losses.calculate_loss_main(output, target, control_vars['iter_size'])
+        loss = my_losses.calculate_loss_main_with_joints(output, target_heatmaps, target_joints,
+                                                         control_vars['iter_size'])
         loss.backward()
         train_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
-            train_vars['total_pixel_loss'], output, target, args.batch_size)
+            train_vars['total_pixel_loss'], output[0], target_heatmaps, args.batch_size)
         train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            train_vars['total_pixel_loss_sample'], output, target, args.batch_size)
+            train_vars['total_pixel_loss_sample'], output[0], target_heatmaps, args.batch_size)
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
@@ -142,15 +144,6 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
             train_vars['pixel_losses_sample'].append(train_vars['total_pixel_loss_sample'])
             # erase dist loss of sample from output
             train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
-            # check if dist loss is better
-            '''
-            if dist_losses[-1] < best_dist_loss:
-                best_dist_loss = dist_losses[-1]
-                print("  This is a best pixel dist loss found so far: " + str(dist_losses[-1]))
-            if dist_losses_sample[-1] < best_dist_loss_sample:
-                best_dist_loss_sample = dist_losses_sample[-1]
-                print("  This is a best pixel dist loss (from sample) found so far: " + str(dist_losses_sample[-1]))
-                '''
             # check if loss is better
             if train_vars['losses'][-1] < train_vars['best_loss']:
                 train_vars['best_loss'] = train_vars['losses'][-1]
@@ -214,7 +207,7 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
                                                                         str(control_vars['curr_iter']) + '.pth.tar')
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(curr_epoch_iter) + '/' +\
-                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']) + '/' +\
+                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
                      str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) +\
                      ' - log every ' + str(control_vars['log_interval']) + ' iter): '
             control_vars['tot_toc'] = display_est_time_loop(control_vars['tot_toc'] + time.time() - start,
@@ -226,7 +219,7 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-train_loader = io_data.get_HALNet_trainloader(joint_ixs=halnet.joint_ixs,
+train_loader = io_data.get_SynthHands_trainloader(joint_ixs=jornet.joint_ixs,
                                               batch_size=args.max_mem_batch,
                                               verbose=args.verbose)
 control_vars['num_batches'] = len(train_loader)
@@ -237,8 +230,8 @@ control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_
 
 print_verbose("-----------------------------------------------------------", args.verbose)
 print_verbose("Model info", args.verbose)
-print_verbose("Number of joints: " + str(len(halnet.joint_ixs)), args.verbose)
-print_verbose("Joints indexes: " + str(halnet.joint_ixs), args.verbose)
+print_verbose("Number of joints: " + str(len(jornet.joint_ixs)), args.verbose)
+print_verbose("Joints indexes: " + str(jornet.joint_ixs), args.verbose)
 print_verbose("-----------------------------------------------------------", args.verbose)
 print_verbose("Max memory batch size: " + str(args.max_mem_batch), args.verbose)
 print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), args.verbose)
@@ -253,19 +246,23 @@ print_verbose("Approximate number of epochs to train: " +
               str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), args.verbose)
 print_verbose("-----------------------------------------------------------", args.verbose)
 
-halnet.train()
-control_vars['curr_epoch_iter'] = 1
-control_vars['curr_iter'] = 1
+jornet.train()
+control_vars['curr_epoch_iter'] = control_vars['start_iter_mod'] - 1
+control_vars['curr_iter'] = control_vars['start_iter_mod'] - 1
+#control_vars['log_interval'] = 1
+
+print(train_vars['losses'][-10:])
+
 for epoch in range(args.num_epochs):
     if epoch + 1 < control_vars['start_epoch']:
         print_verbose("Advancing through epochs: " + str(epoch + 1), args.verbose, erase_line=True)
         control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
         continue
     train_vars['total_loss'] = 0
-    train_vars['total_pixel_loss'] = [0] * len(halnet.joint_ixs)
-    train_vars['total_pixel_loss_sample'] = [0] * len(halnet.joint_ixs)
+    train_vars['total_pixel_loss'] = [0] * len(jornet.joint_ixs)
+    train_vars['total_pixel_loss_sample'] = [0] * len(jornet.joint_ixs)
     optimizer.zero_grad()
-    train_vars, control_vars = train(halnet, optimizer, train_vars, control_vars, args.verbose)
+    train_vars, control_vars = train(jornet, optimizer, train_vars, control_vars, args.verbose)
     if control_vars['done_training']:
         break
     if epoch + 1 >= control_vars['start_epoch']:

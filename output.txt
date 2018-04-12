@@ -1,0 +1,22 @@
+Loading model and optimizer from file: checkpoint_model_log.pth.tar
+Loading synthhands train dataset...
+Synthhands train dataset loaded with 167070 examples of shape torch.Size([4, 240, 320]) and labels of shape torch.Size([21, 320, 240])
+-----------------------------------------------------------
+Model info
+Number of joints: 21
+Joints indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+-----------------------------------------------------------
+Max memory batch size: 8
+Length of dataset (in max mem batch size): 20884
+Starting batch idx: 18224
+-----------------------------------------------------------
+Training batch size: 16
+Starting epoch: 1
+Starting epoch iteration: 9112
+Starting overall iteration: 9112
+-----------------------------------------------------------
+Number of iterations per epoch: 10442
+Number of iterations to train: 100000
+Approximate number of epochs to train: 9.6
+-----------------------------------------------------------
+Performing first iteration; current mini-batch: 1/2Going through iterations to arrive at last one saved... 0% of 9112 iterations (1/9112)Performing first iteration; current mini-batch: 2/2Going through iterations to arrive at last one saved... 0% of 9112 iterations (2/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (3/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (4/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (5/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (6/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (7/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (8/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (9/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (10/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (11/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (12/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (13/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (14/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (15/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (16/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (17/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (18/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (19/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (20/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (21/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (22/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (23/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (24/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (25/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (26/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (27/9112)Going through iterations to arrive at last one saved... 0% of 9112 iterations (28/9112)

@@ -33,6 +33,23 @@ def calculate_loss_multiple(output, target, iter_size,
     #print('-------------------------------')
     return loss
 
+def euclidean_loss(output_joints, target_joints):
+    return (output_joints - target_joints).sum().abs()
+
+def calculate_loss_main_with_joints(output, target_heatmaps, target_joints, iter_size):
+    loss_main = 0
+    output_main = output[0]
+    # calculate main loss for "heatmaps"
+    for joint_output_ix in range(output_main.shape[1]):
+        loss_joint = cross_entropy_loss_p_logq(
+            output_main[:, joint_output_ix, :, :], target_heatmaps[:, joint_output_ix, :, :])
+        loss_main += loss_joint
+    loss_main = loss_main / iter_size
+    # calculate loss for joints
+    loss_joints = euclidean_loss(output[1], target_joints)
+    loss = loss_main + loss_joints
+    return loss
+
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0
     for joint_output_ix in range(output.shape[1]):
