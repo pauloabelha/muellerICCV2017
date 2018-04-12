@@ -48,7 +48,7 @@ def calculate_loss_main_with_joints(output, target_heatmaps, target_joints, iter
     # calculate loss for joints
     loss_joints = euclidean_loss(output[1], target_joints)
     loss = loss_main + loss_joints
-    return loss
+    return loss, loss_main, loss_joints
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0

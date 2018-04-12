@@ -17,7 +17,7 @@ parser.add_argument('--num_iter', dest='num_iter', type=int, required=True,
                     help='Total number of iterations to train')
 parser.add_argument('-c', dest='checkpoint_filepath', default='',
                     help='Checkpoint file from which to begin training')
-parser.add_argument('--log_interval', dest='log_interval', default=10,
+parser.add_argument('--log_interval', type=int, dest='log_interval', default=10,
                     help='Number of iterations interval on which to log'
                          ' a model checkpoint (default 10)')
 parser.add_argument('--log_interval_valid', dest='log_interval_valid', default=1000,
@@ -116,10 +116,12 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
         # get model output
         output = model(data)
         # accumulate loss for sub-mini-batch
-        loss = my_losses.calculate_loss_main_with_joints(output, target_heatmaps, target_joints,
-                                                         control_vars['iter_size'])
-        loss.backward()
+        loss, loss_main, loss_joints = my_losses.calculate_loss_main_with_joints(
+            output, target_heatmaps, target_joints, control_vars['iter_size'])
         train_vars['total_loss'] += loss
+        loss.backward()
+        train_vars['total_loss_main'] += loss_main
+        train_vars['total_loss_joint'] += loss_joints
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[0], target_heatmaps, args.batch_size)
@@ -132,10 +134,18 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
             optimizer.step()
             # clear optimiser
             optimizer.zero_grad()
-            # append loss
+            # append total loss
             train_vars['losses'].append(train_vars['total_loss'].data[0])
-            # erase loss
+            # erase total loss
             train_vars['total_loss'] = 0
+            # append loss main
+            train_vars['losses_main'].append(train_vars['total_loss_main'].data[0])
+            # erase loss main
+            train_vars['total_loss_main'] = 0
+            # append loss joints
+            train_vars['losses_joints'].append(train_vars['total_loss_joint'].data[0])
+            # erase loss joint
+            train_vars['total_loss_joint'] = 0
             # append dist loss
             train_vars['pixel_losses'].append(train_vars['total_pixel_loss'])
             # erase pixel dist loss
@@ -169,11 +179,22 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
                 }
                 trainer.save_checkpoint(checkpoint_model_dict, filename='checkpoint_model_log.pth.tar')
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Main loss:", verbose)
+                print_verbose("Total loss: " + str(loss), verbose)
+                print_verbose("Main loss: " + str(loss_main), verbose)
+                print_verbose("Joint loss: " + str(loss_joints), verbose)
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
                 print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
-                      " iterations (average loss): " + str(np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose)
+                      " iterations (average total loss): " + str(
+                    np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose)
                 print_verbose("This is the last loss: " + str(train_vars['losses'][-1]), verbose)
+                print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
+                              " iterations (average main loss): " + str(
+                    np.mean(train_vars['losses_main'][-control_vars['log_interval']:])), verbose)
+                print_verbose("This is the last loss main: " + str(train_vars['losses_main'][-1]), verbose)
+                print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
+                              " iterations (average joint loss): " + str(
+                    np.mean(train_vars['losses_joints'][-control_vars['log_interval']:])), verbose)
+                print_verbose("This is the last loss joints: " + str(train_vars['losses_joints'][-1]), verbose)
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
                 print_verbose("Joint pixel losses:", verbose)
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
@@ -259,6 +280,8 @@ for epoch in range(args.num_epochs):
         control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
         continue
     train_vars['total_loss'] = 0
+    train_vars['total_loss_main'] = 0
+    train_vars['total_loss_joint'] = 0
     train_vars['total_pixel_loss'] = [0] * len(jornet.joint_ixs)
     train_vars['total_pixel_loss_sample'] = [0] * len(jornet.joint_ixs)
     optimizer.zero_grad()

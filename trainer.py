@@ -6,6 +6,8 @@ import torch
 def initialize_train_vars(joint_ixs):
     train_vars = {}
     train_vars['losses'] = []
+    train_vars['losses_main'] = []
+    train_vars['losses_joints'] = []
     train_vars['pixel_losses'] = []
     train_vars['pixel_losses_sample'] = []
     train_vars['best_loss'] = 1e10
