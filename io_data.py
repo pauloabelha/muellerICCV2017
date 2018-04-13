@@ -4,7 +4,7 @@ import camera
 import pickle
 import torch
 from torch.utils.data.dataset import Dataset
-import HALNet_torch
+import HALNet
 import shutil
 import torch.optim as optim
 from scipy import misc
@@ -25,7 +25,7 @@ NUM_LOSSES = 4
 LOSSES_RES = [(320, 240), (160, 120), (160, 120), (40, 30)]
 NUM_JOINTS = 21
 
-def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet_torch.HALNet,
+def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet.HALNet,
                     num_iter=0, log_interval=0, log_interval_valid=0, batch_size=0, max_mem_batch=0):
     # load file
     torch_file = torch.load(filename)

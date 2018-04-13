@@ -2,8 +2,12 @@ from debugger import print_verbose
 import resnet
 import numpy as np
 import torch
+import argparse
+import sys
+import optimizers as my_optimizers
+import io_data
 
-def initialize_train_vars(joint_ixs):
+def initialize_train_vars(args):
     train_vars = {}
     train_vars['losses'] = []
     train_vars['losses_main'] = []
@@ -14,26 +18,92 @@ def initialize_train_vars(joint_ixs):
     train_vars['best_pixel_loss'] = 1e10
     train_vars['best_pixel_loss_sample'] = 1e10
     train_vars['best_model_dict'] = {}
-    train_vars['joint_ixs'] = joint_ixs
+    train_vars['joint_ixs'] = args.joint_ixs
     return train_vars
 
 # initialize control variables
-def initialize_control_vars(num_iter, max_mem_batch, batch_size,
-                            log_interval, log_interval_valid):
+def initialize_control_vars(args):
     control_vars = {}
     control_vars['start_epoch'] = 1
     control_vars['start_iter'] = 1
-    control_vars['num_iter'] = num_iter
+    control_vars['num_iter'] = args.num_iter
     control_vars['best_model_dict'] = 0
-    control_vars['log_interval'] = log_interval
-    control_vars['log_interval_valid'] = log_interval_valid
-    control_vars['batch_size'] = batch_size
-    control_vars['max_mem_batch'] = max_mem_batch
-    control_vars['iter_size'] = int(batch_size / max_mem_batch)
+    control_vars['log_interval'] = args.log_interval
+    control_vars['log_interval_valid'] = args.log_interval_valid
+    control_vars['batch_size'] = args.batch_size
+    control_vars['max_mem_batch'] = args.max_mem_batch
+    control_vars['iter_size'] = int(args.batch_size / args.max_mem_batch)
     control_vars['n_iter_per_epoch'] = 0
     control_vars['done_training'] = False
     control_vars['tot_toc'] = 0
     return control_vars
+
+def initialize_vars(args):
+    control_vars = initialize_control_vars(args)
+    train_vars = initialize_train_vars(args)
+    return control_vars, train_vars
+
+def parse_args(model_class):
+    parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
+    parser.add_argument('--num_iter', dest='num_iter', type=int, required=True,
+                        help='Total number of iterations to train')
+    parser.add_argument('-c', dest='checkpoint_filepath', default='',
+                        help='Checkpoint file from which to begin training')
+    parser.add_argument('--log_interval', type=int, dest='log_interval', default=10,
+                        help='Number of iterations interval on which to log'
+                             ' a model checkpoint (default 10)')
+    parser.add_argument('--log_interval_valid', type=int, dest='log_interval_valid', default=1000,
+                        help='Number of iterations interval on which to log'
+                             ' a model checkpoint for validation (default 1000)')
+    parser.add_argument('--num_epochs', dest='num_epochs', default=100,
+                        help='Total number of epochs to train')
+    parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
+                        help='Whether to use cuda for training')
+    parser.add_argument('-o', dest='output_filepath', default='',
+                        help='Output file for logging')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=True,
+                        help='Verbose mode')
+    parser.add_argument('-j', '--joint_ixs', dest='joint_ixs', nargs='+', help='', default=list(range(21)))
+    parser.add_argument('--resnet', dest='load_resnet', action='store_true', default=False,
+                        help='Whether to load RESNet weights onto the network when creating it')
+    parser.add_argument('--max_mem_batch', type=int, dest='max_mem_batch', default=8,
+                        help='Max size of batch given GPU memory (default 8)')
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=16,
+                        help='Batch size for training (if larger than max memory batch, training will take '
+                             'the required amount of iterations to complete a batch')
+    args = parser.parse_args()
+    args.joint_ixs = list(map(int, args.joint_ixs))
+
+    if args.use_cuda:
+        print_verbose("Using CUDA", args.verbose)
+    else:
+        print_verbose("Not using CUDA", args.verbose)
+
+    if args.output_filepath == '':
+        print_verbose("No output filepath specified", args.verbose)
+    else:
+        f = open(args.output_filepath, 'w')
+        sys.stdout = f
+
+    control_vars, train_vars = initialize_vars(args)
+    if args.checkpoint_filepath == '':
+        print_verbose("Creating network from scratch", args.verbose)
+        print_verbose("Building network...", args.verbose)
+        model = model_class(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda)
+        if args.load_resnet:
+            model = load_resnet_weights_into_HALNet(model, args.verbose)
+        print_verbose("Done building network", args.verbose)
+        optimizer = my_optimizers.get_adadelta_halnet(model)
+    else:
+        print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
+        model, optimizer, train_vars, control_vars = \
+            io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
+                                    num_iter=100000, log_interval=10,
+                                    log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+
+    return args, model, optimizer, control_vars, train_vars
+
+
 
 def load_resnet_weights_into_HALNet(halnet, verbose, n_tabs=1):
     print_verbose("Loading RESNet50...", verbose, n_tabs)

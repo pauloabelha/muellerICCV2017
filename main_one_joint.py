@@ -1,4 +1,4 @@
-import HALNet_torch
+import HALNet
 import optimizers as my_optimizers
 import torch
 from torch.autograd import Variable
@@ -53,7 +53,7 @@ if LOAD_MODEL_FILENAME == '':
 
     if VERBOSE:
         print("Building HALNet network...")
-    halnet = HALNet_torch.HALNet(use_cuda=USE_CUDA)
+    halnet = HALNet.HALNet(use_cuda=USE_CUDA)
     if VERBOSE:
         print("Done building HALNet network")
     if not USE_CUDA:

@@ -13,7 +13,7 @@ import math
 VERBOSE = True
 DEBUGGING_VISUALLY = True
 # max batch size that GPU can handle
-MAX_MEM_BATCH_SIZE = 8
+MAX_MEM_BATCH_SIZE = 4
 # actual batch size wanted
 BATCH_SIZE = 16
 LOG_INTERVAL = 1
@@ -42,19 +42,24 @@ def get_quant_results(model, valid_loader, results_filename='test_quant_results.
         start = time.time()
         curr_train_ix += 1
         # get data and targetas cuda variables
-        data, target = Variable(data).cuda(), Variable(target).cuda()
+        target_heatmaps, target_joints = target
+        data, target_heatmaps, target_joints = \
+            Variable(data).cuda(), Variable(target_heatmaps).cuda(), Variable(target_joints).cuda()
+        # visualize if debugging
         # get model output
-        output = model(data.cuda())
+        output = model(data)
         # accumulate loss for sub-mini-batch
         # accumulate loss for sub-mini-batch
-        loss = my_losses.calculate_loss_main(output, target, iter_size)
+        # accumulate loss for sub-mini-batch
+        loss, loss_main, loss_joints = my_losses.calculate_loss_main_with_joints(
+            output, target_heatmaps, target_joints, control_vars['iter_size'])
         loss.backward()
         total_loss += loss
         # accumulate pixel dist loss for sub-mini-batch
         total_pixel_losses = my_losses.accumulate_pixel_dist_loss_multiple(
-            total_pixel_losses, output, target, BATCH_SIZE)
+            total_pixel_losses, output[0], target_heatmaps, BATCH_SIZE)
         total_pixel_losses_sample = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            total_pixel_losses_sample, output, target, BATCH_SIZE)
+            total_pixel_losses_sample, output[0], target_heatmaps, BATCH_SIZE)
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx + 1) % int(BATCH_SIZE / MAX_MEM_BATCH_SIZE) == 0
         if minibatch_completed:
@@ -78,7 +83,7 @@ def get_quant_results(model, valid_loader, results_filename='test_quant_results.
             if curr_iter % LOG_INTERVAL == 0:
                 if DEBUGGING_VISUALLY:
                     print("")
-                    debugger.show_target_and_output_to_image_info(data, target, output)
+                    debugger.show_target_and_output_to_image_info(data, target_heatmaps, output[0])
                 print("-------------------------------------------------------------------------------------------")
                 print("Main loss:")
                 print("-------------------------------------------------------------------------------------------")
@@ -142,8 +147,8 @@ def show_hist_quant_results(results, xlabel='', ylabel='', title=''):
     plt.grid(True)
     plt.show()
 
-halnet, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='checkpoint_model_log.pth.tar',
-                                                                      model_class=JORNet.HALNet)
+model, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='checkpoint_model_log.pth.tar',
+                                                                      model_class=JORNet.JORNet)
 START_ITER = control_vars['curr_iter'] + 1
 
 print("Validating model that was trained for " + str(control_vars['curr_iter']) + " iterations")
@@ -163,12 +168,12 @@ if DEBUGGING_VISUALLY:
     plt.legend(handles=plot_handles)
     plt.show()
 
-valid_loader = io_data.get_HALNet_validloader(joint_ixs=halnet.joint_ixs,
+valid_loader = io_data.get_SynthHands_validloader(joint_ixs=model.joint_ixs,
                                               batch_size=MAX_MEM_BATCH_SIZE,
                                               verbose=VERBOSE)
-halnet.eval()
+model.eval()
 losses, pixel_losses, pixel_losses_sample = get_quant_results(
-    halnet, valid_loader, results_filename='valid_results_' + str(START_ITER) + '.p')
+    model, valid_loader, results_filename='valid_results_' + str(START_ITER) + '.p')
 
 # plot valid losses
 if DEBUGGING_VISUALLY:

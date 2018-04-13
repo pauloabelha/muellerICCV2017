@@ -259,7 +259,7 @@ class JORNet(nn.Module):
         out = self.main_loss_deconv(out)
         # main loss
         out_main = self.softmax_final(out)
-        # joint loss
+        # joint position loss
         conv4fout = conv4fout.view(-1, 256*30*40)
         outinner1 = self.innerproduct1(conv4fout)
         outinner_joints = self.innerproduct2(outinner1)

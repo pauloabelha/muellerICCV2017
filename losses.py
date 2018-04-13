@@ -1,21 +1,39 @@
 import numpy as np
 import probs
+import torch.nn.functional as F
 
 def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
     return (-((torchvar_p + eps) * torchvar_logq + eps).sum(dim=1).sum(dim=1)).sum() / batch_size
 
-def calculate_loss_multiple(output, target, iter_size,
-                   weight_loss_intermed1, weight_loss_intermed2,
-                   weight_loss_intermed3, weight_loss_main, eps=1e-9):
-    #loss_intermed1 = F.l1_loss(output[0][:, 0, :, :], target)
-    #loss_intermed2 = F.l1_loss(output[1][:, 0, :, :], target)
-    #loss_intermed3 = F.l1_loss(output[2][:, 0, :, :], target)
-    #loss_main = F.l1_loss(output[-1][:, 0, :, :], target)
-    # loss = (weight_loss_intermed1 * loss_intermed1) +\
-    #       (weight_loss_intermed2 * loss_intermed2) + \
-    #       (weight_loss_intermed3 * loss_intermed3) + \
-    #       (weight_loss_main * loss_main)
+def calculate_loss_HALNet_euclidean(output, target, joint_ixs, weight_loss_intermed1, weight_loss_intermed2,
+                   weight_loss_intermed3, weight_loss_main, iter_size):
+    loss_intermed1 = 0
+    loss_intermed2 = 0
+    loss_intermed3 = 0
+    loss_main = 0
+    for joint_ix in joint_ixs:
+        loss_intermed1 += F.l1_loss(output[0][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_intermed2 += F.l1_loss(output[1][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_intermed3 += F.l1_loss(output[2][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_main += F.l1_loss(output[3][:, joint_ix, :, :], target[:, joint_ix, :, :])
+    loss = (weight_loss_intermed1 * loss_intermed1) +\
+           (weight_loss_intermed2 * loss_intermed2) + \
+           (weight_loss_intermed3 * loss_intermed3) + \
+           (weight_loss_main * loss_main)
+    loss /= iter_size
+    return loss
+
+def calculate_loss_HALNet_crossentropy(output, target, weight_loss_intermed1, weight_loss_intermed2,
+                   weight_loss_intermed3, weight_loss_main, iter_size):
+    loss_intermed1 = F.l1_loss(output[0][:, 0, :, :], target)
+    loss_intermed2 = F.l1_loss(output[1][:, 0, :, :], target)
+    loss_intermed3 = F.l1_loss(output[2][:, 0, :, :], target)
+    loss_main = F.l1_loss(output[-1][:, 0, :, :], target)
+    loss = (weight_loss_intermed1 * loss_intermed1) +\
+           (weight_loss_intermed2 * loss_intermed2) + \
+           (weight_loss_intermed3 * loss_intermed3) + \
+           (weight_loss_main * loss_main)
     loss_intermed1 = cross_entropy_loss_p_logq(output[0][:, 0, :, :], target)
     loss_intermed2 = cross_entropy_loss_p_logq(output[1][:, 0, :, :], target)
     loss_intermed3 = cross_entropy_loss_p_logq(output[2][:, 0, :, :], target)
@@ -25,30 +43,30 @@ def calculate_loss_multiple(output, target, iter_size,
            (weight_loss_intermed3 * loss_intermed3) + \
            (weight_loss_main * loss_main)
     loss = loss / iter_size
-    #print('-------------------------------')
-    #print(loss_intermed1.data[0])
-    #print(loss_intermed2.data[0])
-    #print(loss_intermed3.data[0])
-    #print(loss_main.data[0])
-    #print('-------------------------------')
+    print('-------------------------------')
+    print(loss_intermed1.data[0])
+    print(loss_intermed2.data[0])
+    print(loss_intermed3.data[0])
+    print(loss_main.data[0])
+    print('-------------------------------')
     return loss
 
 def euclidean_loss(output_joints, target_joints):
     return (output_joints - target_joints).sum().abs()
 
-def calculate_loss_main_with_joints(output, target_heatmaps, target_joints, iter_size):
-    loss_main = 0
+def calculate_loss_JORNet(output, target_heatmaps, target_joints, iter_size):
+    loss_heatmap = 0
     output_main = output[0]
     # calculate main loss for "heatmaps"
     for joint_output_ix in range(output_main.shape[1]):
         loss_joint = cross_entropy_loss_p_logq(
             output_main[:, joint_output_ix, :, :], target_heatmaps[:, joint_output_ix, :, :])
-        loss_main += loss_joint
-    loss_main = loss_main / iter_size
+        loss_heatmap += loss_joint
     # calculate loss for joints
-    loss_joints = euclidean_loss(output[1], target_joints)
-    loss = loss_main + loss_joints
-    return loss, loss_main, loss_joints
+    loss_joint_pos = euclidean_loss(output[1], target_joints)
+    loss_main = loss_heatmap + loss_joint_pos
+    loss_main /= iter_size
+    return loss_main, loss_joint_pos, loss_heatmap
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0
