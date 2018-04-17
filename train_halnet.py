@@ -11,7 +11,7 @@ from HALNet import HALNet
 
 CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
 
-args, model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet)
+model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet)
 
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -67,9 +67,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         train_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
-            train_vars['total_pixel_loss'], output[3], target_heatmaps, args.batch_size)
+            train_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
         train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, args.batch_size)
+            train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
@@ -155,7 +155,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                                         filename=CHECKPOINT_FILENAMEBASE + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
             # print time lapse
-            prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(curr_epoch_iter) + '/' +\
+            prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
                      str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
                      str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) +\
                      ' - log every ' + str(control_vars['log_interval']) + ' iter): '
@@ -164,44 +164,44 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                                                             prefix=prefix)
             control_vars['curr_iter'] += 1
             control_vars['start_iter'] = control_vars['curr_iter'] + 1
-            curr_epoch_iter += 1
+            control_vars['curr_epoch_iter'] += 1
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 train_loader = io_data.get_SynthHands_trainloader(joint_ixs=model.joint_ixs,
-                                              batch_size=args.max_mem_batch,
-                                              verbose=args.verbose)
+                                              batch_size=control_vars['max_mem_batch'],
+                                              verbose=control_vars['verbose'])
 control_vars['num_batches'] = len(train_loader)
 control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
 
 control_vars['tot_iter'] = int(len(train_loader) / control_vars['iter_size'])
 control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
 
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Model info", args.verbose)
-print_verbose("Number of joints: " + str(len(model.joint_ixs)), args.verbose)
-print_verbose("Joints indexes: " + str(model.joint_ixs), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Max memory batch size: " + str(args.max_mem_batch), args.verbose)
-print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), args.verbose)
-print_verbose("Training batch size: " + str(args.batch_size), args.verbose)
-print_verbose("Starting epoch: " + str(control_vars['start_epoch']), args.verbose)
-print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), args.verbose)
-print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), args.verbose)
-print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), args.verbose)
+print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+print_verbose("Model info", control_vars['verbose'])
+print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose'])
+print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose'])
+print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose'])
+print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), control_vars['verbose'])
+print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose'])
+print_verbose("Starting epoch: " + str(control_vars['start_epoch']), control_vars['verbose'])
+print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), control_vars['verbose'])
+print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), control_vars['verbose'])
+print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), control_vars['verbose'])
+print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), control_vars['verbose'])
 print_verbose("Approximate number of epochs to train: " +
-              str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
+              str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), control_vars['verbose'])
+print_verbose("-----------------------------------------------------------", control_vars['verbose'])
 
 model.train()
 control_vars['curr_epoch_iter'] = 1
 control_vars['curr_iter'] = 1
 
-for epoch in range(args.num_epochs):
+for epoch in range(control_vars['num_epochs']):
     if epoch + 1 < control_vars['start_epoch']:
-        print_verbose("Advancing through epochs: " + str(epoch + 1), args.verbose, erase_line=True)
+        print_verbose("Advancing through epochs: " + str(epoch + 1), control_vars['verbose'], erase_line=True)
         control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
         continue
     train_vars['total_loss'] = 0
@@ -209,6 +209,6 @@ for epoch in range(args.num_epochs):
     train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
     optimizer.zero_grad()
     # train model
-    train_vars, control_vars = train(train_loader, model, optimizer, train_vars, control_vars, args.verbose)
+    train_vars, control_vars = train(train_loader, model, optimizer, train_vars, control_vars, control_vars['verbose'])
     if control_vars['done_training']:
         break

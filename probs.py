@@ -4,8 +4,6 @@ def sample_from_2D_output(output, is_log_prob=True):
     p_choice = output.flatten()
     if is_log_prob:
         p_choice = np.exp(p_choice)
-    # enforce sum to 1: (temporary) stupid way of doing it:(
-    p_choice[-1] -= p_choice.sum() - 1
     output_sample_flat_ix = np.random.choice(range(len(p_choice)),
                                              size=None, replace=False, p=p_choice)
     output_sample = np.unravel_index(output_sample_flat_ix, output.shape)

@@ -25,8 +25,8 @@ NUM_LOSSES = 4
 LOSSES_RES = [(320, 240), (160, 120), (160, 120), (40, 30)]
 NUM_JOINTS = 21
 
-def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet.HALNet,
-                    num_iter=0, log_interval=0, log_interval_valid=0, batch_size=0, max_mem_batch=0):
+def load_checkpoint(filename, model_class, num_iter=0, log_interval=0,
+                    log_interval_valid=0, batch_size=0, max_mem_batch=0):
     # load file
     torch_file = torch.load(filename)
     # load model
@@ -35,12 +35,7 @@ def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet.HALNet,
         joint_ixs = torch_file['train_vars']['joint_ixs']
     except:
         joint_ixs = torch_file['joint_ixs']
-    model = model_class(joint_ixs)
-    model.load_state_dict(model_state_dict)
-    # load optimizer
-    optimizer_state_dict = torch_file['optimizer_state_dict']
-    optimizer = optim.Adadelta(model.parameters())
-    optimizer.load_state_dict(optimizer_state_dict)
+
     try:
         train_vars = torch_file['train_vars']
         control_vars = torch_file['control_vars']
@@ -66,6 +61,16 @@ def load_checkpoint(filename='checkpoint.pth.tar', model_class=HALNet.HALNet,
         control_vars['max_mem_batch'] = max_mem_batch
         control_vars['iter_size'] = int(batch_size / max_mem_batch)
         control_vars['tot_toc'] = 0
+    params_dict = {}
+    params_dict['joint_ixs'] = train_vars['joint_ixs']
+    params_dict['use_cuda'] = train_vars['use_cuda']
+    params_dict['cross_entropy'] = train_vars['cross_entropy']
+    model = model_class(params_dict)
+    model.load_state_dict(model_state_dict)
+    # load optimizer
+    optimizer_state_dict = torch_file['optimizer_state_dict']
+    optimizer = optim.Adadelta(model.parameters())
+    optimizer.load_state_dict(optimizer_state_dict)
     return model, optimizer, train_vars, control_vars
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):

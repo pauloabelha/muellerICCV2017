@@ -19,6 +19,7 @@ def initialize_train_vars(args):
     train_vars['best_pixel_loss_sample'] = 1e10
     train_vars['best_model_dict'] = {}
     train_vars['joint_ixs'] = args.joint_ixs
+    train_vars['use_cuda'] = args.use_cuda
     train_vars['cross_entropy'] = False
     return train_vars
 
@@ -28,6 +29,7 @@ def initialize_control_vars(args):
     control_vars['start_epoch'] = 1
     control_vars['start_iter'] = 1
     control_vars['num_iter'] = args.num_iter
+    control_vars['num_epochs'] = args.num_epochs
     control_vars['best_model_dict'] = 0
     control_vars['log_interval'] = args.log_interval
     control_vars['log_interval_valid'] = args.log_interval_valid
@@ -37,6 +39,8 @@ def initialize_control_vars(args):
     control_vars['n_iter_per_epoch'] = 0
     control_vars['done_training'] = False
     control_vars['tot_toc'] = 0
+    control_vars['output_filepath'] = args.output_filepath
+    control_vars['verbose'] = args.verbose
     return control_vars
 
 def initialize_vars(args):
@@ -77,24 +81,17 @@ def parse_args(model_class):
     args = parser.parse_args()
     args.joint_ixs = list(map(int, args.joint_ixs))
 
-    if args.use_cuda:
-        print_verbose("Using CUDA", args.verbose)
-    else:
-        print_verbose("Not using CUDA", args.verbose)
-
-    if args.output_filepath == '':
-        print_verbose("No output filepath specified", args.verbose)
-    else:
-        f = open(args.output_filepath, 'w')
-        sys.stdout = f
-
     control_vars, train_vars = initialize_vars(args)
     if args.checkpoint_filepath == '':
         print_verbose("Creating network from scratch", args.verbose)
         print_verbose("Building network...", args.verbose)
         train_vars['use_cuda'] = args.use_cuda
         train_vars['cross_entropy'] = args.cross_entropy
-        model = model_class(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda, cross_entropy=args.cross_entropy)
+        params_dict = {}
+        params_dict['joint_ixs'] = args.joint_ixs
+        params_dict['use_cuda'] = args.use_cuda
+        params_dict['cross_entropy'] = args.cross_entropy
+        model = model_class(params_dict)
         if args.load_resnet:
             model = load_resnet_weights_into_HALNet(model, args.verbose)
         print_verbose("Done building network", args.verbose)
@@ -106,11 +103,24 @@ def parse_args(model_class):
             io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
                                     num_iter=100000, log_interval=10,
                                     log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+    if train_vars['use_cuda']:
+        print_verbose("Using CUDA", args.verbose)
+    else:
+        print_verbose("Not using CUDA", args.verbose)
+
+    control_vars['num_epochs'] = 100
+    control_vars['verbose'] = True
+    control_vars['output_filepath'] = ''
+    if control_vars['output_filepath'] == '':
+        print_verbose("No output filepath specified", args.verbose)
+    else:
+        f = open(args.output_filepath, 'w')
+        sys.stdout = f
 
     if train_vars['cross_entropy']:
         print_verbose("Using cross entropy loss", args.verbose)
 
-    return args, model, optimizer, control_vars, train_vars
+    return model, optimizer, control_vars, train_vars
 
 
 
