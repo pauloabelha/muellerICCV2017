@@ -2,57 +2,33 @@ import numpy as np
 import probs
 import torch.nn.functional as F
 
+def euclidean_loss(output_joints, target_joints):
+    return (output_joints - target_joints).sum().abs()
+
 def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
     return (-((torchvar_p + eps) * torchvar_logq + eps).sum(dim=1).sum(dim=1)).sum() / batch_size
 
-def calculate_loss_HALNet_euclidean(output, target, joint_ixs, weight_loss_intermed1, weight_loss_intermed2,
-                   weight_loss_intermed3, weight_loss_main, iter_size):
+def calculate_loss_HALNet(loss_func, output, target, joint_ixs,
+                                       weight_loss_intermed1, weight_loss_intermed2,
+                                       weight_loss_intermed3, weight_loss_main, iter_size):
     loss_intermed1 = 0
     loss_intermed2 = 0
     loss_intermed3 = 0
     loss_main = 0
     for joint_ix in joint_ixs:
-        loss_intermed1 += F.l1_loss(output[0][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_intermed2 += F.l1_loss(output[1][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_intermed3 += F.l1_loss(output[2][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_main += F.l1_loss(output[3][:, joint_ix, :, :], target[:, joint_ix, :, :])
-    loss = (weight_loss_intermed1 * loss_intermed1) +\
-           (weight_loss_intermed2 * loss_intermed2) + \
-           (weight_loss_intermed3 * loss_intermed3) + \
-           (weight_loss_main * loss_main)
-    loss /= iter_size
-    return loss
-
-def calculate_loss_HALNet_crossentropy(output, target, weight_loss_intermed1, weight_loss_intermed2,
-                   weight_loss_intermed3, weight_loss_main, iter_size):
-    loss_intermed1 = F.l1_loss(output[0][:, 0, :, :], target)
-    loss_intermed2 = F.l1_loss(output[1][:, 0, :, :], target)
-    loss_intermed3 = F.l1_loss(output[2][:, 0, :, :], target)
-    loss_main = F.l1_loss(output[-1][:, 0, :, :], target)
-    loss = (weight_loss_intermed1 * loss_intermed1) +\
-           (weight_loss_intermed2 * loss_intermed2) + \
-           (weight_loss_intermed3 * loss_intermed3) + \
-           (weight_loss_main * loss_main)
-    loss_intermed1 = cross_entropy_loss_p_logq(output[0][:, 0, :, :], target)
-    loss_intermed2 = cross_entropy_loss_p_logq(output[1][:, 0, :, :], target)
-    loss_intermed3 = cross_entropy_loss_p_logq(output[2][:, 0, :, :], target)
-    loss_main = cross_entropy_loss_p_logq(output[-1][:, 0, :, :], target)
+        loss_intermed1 += loss_func(output[0][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_intermed2 += loss_func(output[1][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_intermed3 += loss_func(output[2][:, joint_ix, :, :], target[:, joint_ix, :, :])
+        loss_main += loss_func(output[3][:, joint_ix, :, :], target[:, joint_ix, :, :])
     loss = (weight_loss_intermed1 * loss_intermed1) +\
            (weight_loss_intermed2 * loss_intermed2) + \
            (weight_loss_intermed3 * loss_intermed3) + \
            (weight_loss_main * loss_main)
     loss = loss / iter_size
-    print('-------------------------------')
-    print(loss_intermed1.data[0])
-    print(loss_intermed2.data[0])
-    print(loss_intermed3.data[0])
-    print(loss_main.data[0])
-    print('-------------------------------')
     return loss
 
-def euclidean_loss(output_joints, target_joints):
-    return (output_joints - target_joints).sum().abs()
+
 
 def calculate_loss_JORNet(output, target_heatmaps, target_joints, iter_size):
     loss_heatmap = 0
@@ -126,19 +102,3 @@ def accumulate_pixel_dist_loss_multiple(pixel_dist_losses, output, target, BATCH
 def accumulate_pixel_dist_loss_from_sample_multiple(pixel_dist_losses, output, target, BATCH_SIZE):
     return accumulate_pixel_dist_loss_multiple(pixel_dist_losses, output, target, BATCH_SIZE,
                                         dist_func=calculate_pixel_loss_sample)
-
-def accumulate_pixel_dist_loss_from_sample(pixel_dist_loss, output, target, BATCH_SIZE):
-    size_batch = target.data.shape[0]
-    iter_size = int(BATCH_SIZE / size_batch)
-    avg_dist_loss = 0
-    output_numpy = output.data.cpu().numpy()
-    for i in range(size_batch):
-        output_sample, _ = probs.sample_from_2D_output(output_numpy[i][0, :, :], is_log_prob=True)
-        target_tensor = target.data.cpu().numpy()[i, :, :]
-        max_target = np.unravel_index(np.argmax(target_tensor), target_tensor.shape)
-        dist_loss = np.sqrt(np.power((output_sample[0] - max_target[0]), 2) +
-                            np.power((output_sample[1] - max_target[1]), 2))
-        avg_dist_loss += dist_loss / size_batch
-    pixel_dist_loss += avg_dist_loss / iter_size
-    pixel_dist_loss_sample = round(pixel_dist_loss, 1)
-    return pixel_dist_loss_sample

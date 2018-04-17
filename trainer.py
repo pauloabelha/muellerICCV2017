@@ -19,6 +19,7 @@ def initialize_train_vars(args):
     train_vars['best_pixel_loss_sample'] = 1e10
     train_vars['best_model_dict'] = {}
     train_vars['joint_ixs'] = args.joint_ixs
+    train_vars['cross_entropy'] = False
     return train_vars
 
 # initialize control variables
@@ -45,7 +46,7 @@ def initialize_vars(args):
 
 def parse_args(model_class):
     parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
-    parser.add_argument('--num_iter', dest='num_iter', type=int, required=True,
+    parser.add_argument('--num_iter', dest='num_iter', type=int, required=False,
                         help='Total number of iterations to train')
     parser.add_argument('-c', dest='checkpoint_filepath', default='',
                         help='Checkpoint file from which to begin training')
@@ -71,6 +72,8 @@ def parse_args(model_class):
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=16,
                         help='Batch size for training (if larger than max memory batch, training will take '
                              'the required amount of iterations to complete a batch')
+    parser.add_argument('--cross_entropy', dest='cross_entropy', action='store_true', default=False,
+                        help='Whether to use cross entropy loss on HALNet')
     args = parser.parse_args()
     args.joint_ixs = list(map(int, args.joint_ixs))
 
@@ -89,17 +92,23 @@ def parse_args(model_class):
     if args.checkpoint_filepath == '':
         print_verbose("Creating network from scratch", args.verbose)
         print_verbose("Building network...", args.verbose)
-        model = model_class(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda)
+        train_vars['use_cuda'] = args.use_cuda
+        train_vars['cross_entropy'] = args.cross_entropy
+        model = model_class(joint_ixs=args.joint_ixs, use_cuda=args.use_cuda, cross_entropy=args.cross_entropy)
         if args.load_resnet:
             model = load_resnet_weights_into_HALNet(model, args.verbose)
         print_verbose("Done building network", args.verbose)
         optimizer = my_optimizers.get_adadelta_halnet(model)
+
     else:
         print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
         model, optimizer, train_vars, control_vars = \
             io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
                                     num_iter=100000, log_interval=10,
                                     log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+
+    if train_vars['cross_entropy']:
+        print_verbose("Using cross entropy loss", args.verbose)
 
     return args, model, optimizer, control_vars, train_vars
 
@@ -180,7 +189,6 @@ def save_checkpoint(state, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
 
 def pixel_stdev(norm_heatmap):
-    num_pixels = norm_heatmap.size
     mean_norm_heatmap = np.mean(norm_heatmap)
     stdev_norm_heatmap = np.std(norm_heatmap)
     lower_bound = mean_norm_heatmap - stdev_norm_heatmap

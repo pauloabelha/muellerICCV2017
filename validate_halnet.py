@@ -1,21 +1,29 @@
-import torch
-from torch.autograd import Variable
 import io_data
-import numpy as np
-import trainer
+import torch
 import time
-from magic import display_est_time_loop
-import losses as my_losses
-from debugger import print_verbose
+import trainer
+import validator
+import losses
+import numpy as np
 from HALNet import HALNet
-
-CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
+from debugger import print_verbose, show_target_and_output_to_image_info
+from torch.autograd import Variable
+from magic import display_est_time_loop
 
 args, model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet)
 
-def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
+valid_loader = io_data.get_SynthHands_validloader(joint_ixs=model.joint_ixs,
+                                              batch_size=args.max_mem_batch,
+                                              verbose=args.verbose)
+
+print("Validating model that was trained for " + str(control_vars['curr_iter']) + " iterations")
+
+validator.plot_losses(train_vars)
+
+def validate(valid_loader, model, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
-    for batch_idx, (data, target) in enumerate(train_loader):
+    for batch_idx, (data, target) in enumerate(valid_loader):
         control_vars['batch_idx'] = batch_idx
         if batch_idx < control_vars['iter_size']:
             print_verbose("\rPerforming first iteration; current mini-batch: " +
@@ -32,18 +40,8 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 control_vars['curr_iter'] += 1
                 curr_epoch_iter += 1
             continue
-        # save checkpoint after final iteration
         if control_vars['curr_iter'] == control_vars['num_iter']:
             print_verbose("\nReached final number of iterations: " + str(control_vars['num_iter']), verbose)
-            print_verbose("\tSaving final model checkpoint...", verbose)
-            final_model_dict = {
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'control_vars': control_vars,
-                'train_vars': train_vars,
-            }
-            trainer.save_checkpoint(final_model_dict,
-                            filename='final_model_iter_' + str(control_vars['num_iter']) + '.pth.tar')
             control_vars['done_training'] = True
             break
         # start time counter
@@ -55,28 +53,21 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         # get model output
         output = model(data)
         # accumulate loss for sub-mini-batch
-        if train_vars['cross_entropy']:
-            loss_func = my_losses.cross_entropy_loss_p_logq
-        else:
-            loss_func = my_losses.euclidean_loss
-        loss = my_losses.calculate_loss_HALNet(loss_func,
+        loss = losses.calculate_loss_HALNet_euclidean(
             output, target_heatmaps, model.joint_ixs, model.WEIGHT_LOSS_INTERMED1,
             model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
             model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
         loss.backward()
         train_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch
-        train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
+        train_vars['total_pixel_loss'] = losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[3], target_heatmaps, args.batch_size)
-        train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, args.batch_size)
+        train_vars['total_pixel_loss_sample'] = [-1] * len(model.joint_ixs)
+        #train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
+        #    train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, args.batch_size)
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
-            # optimise for mini-batch
-            optimizer.step()
-            # clear optimiser
-            optimizer.zero_grad()
             # append total loss
             train_vars['losses'].append(train_vars['total_loss'].data[0])
             # erase total loss
@@ -94,28 +85,10 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             if train_vars['losses'][-1] < train_vars['best_loss']:
                 train_vars['best_loss'] = train_vars['losses'][-1]
                 print_verbose("  This is a best loss found so far: " + str(train_vars['losses'][-1]), verbose)
-                train_vars['best_model_dict'] = {
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'control_vars': control_vars,
-                    'train_vars': train_vars,
-                }
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
-                print_verbose("", verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Saving checkpoints:", verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                trainer.save_checkpoint(train_vars['best_model_dict'],
-                                        filename=CHECKPOINT_FILENAMEBASE + 'best.pth.tar')
-                checkpoint_model_dict = {
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'control_vars': control_vars,
-                    'train_vars': train_vars,
-                }
-                trainer.save_checkpoint(checkpoint_model_dict,
-                                        filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
+                print("")
+                show_target_and_output_to_image_info(data, target_heatmaps, output[3])
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
                 print_verbose("Total loss: " + str(total_loss), verbose)
                 print_verbose("-------------------------------------------------------------------------------------------", verbose)
@@ -139,24 +112,12 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                           str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
                     print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss of sample): " +
-                          str(np.std(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
+                          str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
                     print_verbose("\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]), verbose)
                     print_verbose("\t-------------------------------------------------------------------------------------------", verbose)
                     print_verbose("-------------------------------------------------------------------------------------------", verbose)
-            if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
-                print_verbose("\nSaving model and checkpoint model for validation", verbose)
-                checkpoint_model_dict = {
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'control_vars': control_vars,
-                    'train_vars': train_vars,
-                }
-                trainer.save_checkpoint(checkpoint_model_dict,
-                                        filename=CHECKPOINT_FILENAMEBASE + 'for_valid_' +
-                                                 str(control_vars['curr_iter']) + '.pth.tar')
             # print time lapse
-            prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(curr_epoch_iter) + '/' +\
-                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
+            prefix = 'Validating (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
                      str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) +\
                      ' - log every ' + str(control_vars['log_interval']) + ' iter): '
             control_vars['tot_toc'] = display_est_time_loop(control_vars['tot_toc'] + time.time() - start,
@@ -167,48 +128,4 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             curr_epoch_iter += 1
     return train_vars, control_vars
 
-torch.set_default_tensor_type('torch.cuda.FloatTensor')
-train_loader = io_data.get_SynthHands_trainloader(joint_ixs=model.joint_ixs,
-                                              batch_size=args.max_mem_batch,
-                                              verbose=args.verbose)
-control_vars['num_batches'] = len(train_loader)
-control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
-
-control_vars['tot_iter'] = int(len(train_loader) / control_vars['iter_size'])
-control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
-
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Model info", args.verbose)
-print_verbose("Number of joints: " + str(len(model.joint_ixs)), args.verbose)
-print_verbose("Joints indexes: " + str(model.joint_ixs), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Max memory batch size: " + str(args.max_mem_batch), args.verbose)
-print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), args.verbose)
-print_verbose("Training batch size: " + str(args.batch_size), args.verbose)
-print_verbose("Starting epoch: " + str(control_vars['start_epoch']), args.verbose)
-print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), args.verbose)
-print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
-print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), args.verbose)
-print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), args.verbose)
-print_verbose("Approximate number of epochs to train: " +
-              str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), args.verbose)
-print_verbose("-----------------------------------------------------------", args.verbose)
-
-model.train()
-control_vars['curr_epoch_iter'] = 1
-control_vars['curr_iter'] = 1
-
-for epoch in range(args.num_epochs):
-    if epoch + 1 < control_vars['start_epoch']:
-        print_verbose("Advancing through epochs: " + str(epoch + 1), args.verbose, erase_line=True)
-        control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
-        continue
-    train_vars['total_loss'] = 0
-    train_vars['total_pixel_loss'] = [0] * len(model.joint_ixs)
-    train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
-    optimizer.zero_grad()
-    # train model
-    train_vars, control_vars = train(train_loader, model, optimizer, train_vars, control_vars, args.verbose)
-    if control_vars['done_training']:
-        break
+validate(valid_loader, model, train_vars, control_vars, verbose=True)

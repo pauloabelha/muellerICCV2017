@@ -147,7 +147,7 @@ def show_hist_quant_results(results, xlabel='', ylabel='', title=''):
     plt.grid(True)
     plt.show()
 
-model, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='checkpoint_model_log.pth.tar',
+model, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='trained_halnet_log_.pth.tar',
                                                                       model_class=JORNet.JORNet)
 START_ITER = control_vars['curr_iter'] + 1
 

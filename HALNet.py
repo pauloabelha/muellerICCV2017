@@ -123,6 +123,7 @@ def cudafy(object, use_cuda):
 
 class HALNet(nn.Module):
 
+    cross_entropy = False
     joint_ixs = None
     use_cuda = None
     WEIGHT_LOSS_INTERMED1 = 0.5
@@ -130,12 +131,13 @@ class HALNet(nn.Module):
     WEIGHT_LOSS_INTERMED3 = 0.5
     WEIGHT_LOSS_MAIN = 1
 
-    def __init__(self, joint_ixs, use_cuda=True):
+    def __init__(self, joint_ixs, use_cuda=True, cross_entropy=False):
         super(HALNet, self).__init__()
         # initialize variables
         self.joint_ixs = joint_ixs
         self.use_cuda = use_cuda
         self.num_joints = len(joint_ixs)
+        self.cross_entropy = cross_entropy
         # build network
         self.conv1 = cudafy(HALNetConvBlock(kernel_size=7, stride=1, filters=64,
                                      in_channels=4, padding=3), use_cuda)
@@ -176,7 +178,8 @@ class HALNet(nn.Module):
                                               filters=self.num_joints, in_channels=256,
                                               padding=1), use_cuda)
         self.main_loss_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear'), use_cuda)
-        self.softmax_final = cudafy(SoftmaxLogProbability2D(), use_cuda)
+        if self.cross_entropy:
+            self.softmax_final = cudafy(SoftmaxLogProbability2D(), use_cuda)
 
     def forward(self, x):
         out = self.conv1(x)
@@ -195,20 +198,25 @@ class HALNet(nn.Module):
         out = self.conv4f(conv4eout)
         out = self.main_loss_conv(out)
         out = self.main_loss_deconv(out)
+        out_main = out
         # main loss
-        out_main = self.softmax_final(out)
+        if self.cross_entropy:
+            out_main = self.softmax_final(out)
         #intermediate losses
         # intermed 1
         out_intermed1 = self.interm_loss1(res3aout)
         out_intermed1 = self.interm_loss1_deconv(out_intermed1)
-        out_intermed1 = self.interm_loss1_softmax(out_intermed1)
+        if self.cross_entropy:
+            out_intermed1 = self.interm_loss1_softmax(out_intermed1)
         # intermed 2
         out_intermed2 = self.interm_loss2(res4aout)
         out_intermed2 = self.interm_loss2_deconv(out_intermed2)
-        out_intermed2 = self.interm_loss2_softmax(out_intermed2)
+        if self.cross_entropy:
+            out_intermed2 = self.interm_loss2_softmax(out_intermed2)
         # intermed 3
         out_intermed3 = self.interm_loss3(conv4eout)
         out_intermed3 = self.interm_loss3_deconv(out_intermed3)
-        out_intermed3 = self.interm_loss3_softmax(out_intermed3)
+        if self.cross_entropy:
+            out_intermed3 = self.interm_loss3_softmax(out_intermed3)
         # return net
         return out_intermed1, out_intermed2, out_intermed3, out_main
