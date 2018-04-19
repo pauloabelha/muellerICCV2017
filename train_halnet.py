@@ -196,10 +196,10 @@ print_verbose("Approximate number of epochs to train: " +
 print_verbose("-----------------------------------------------------------", control_vars['verbose'])
 
 model.train()
-control_vars['curr_epoch_iter'] = 1
 control_vars['curr_iter'] = 1
 
 for epoch in range(control_vars['num_epochs']):
+    control_vars['curr_epoch_iter'] = 1
     if epoch + 1 < control_vars['start_epoch']:
         print_verbose("Advancing through epochs: " + str(epoch + 1), control_vars['verbose'], erase_line=True)
         control_vars['curr_iter'] += control_vars['n_iter_per_epoch']
