@@ -4,7 +4,6 @@ import camera
 import pickle
 import torch
 from torch.utils.data.dataset import Dataset
-import HALNet
 import shutil
 import torch.optim as optim
 from scipy import misc
@@ -12,6 +11,7 @@ try:
     import cv2
 except:
     pass
+import matplotlib.image as mpimg
 
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
 ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
@@ -505,15 +505,6 @@ def _read_label(label_filepath):
     first_line_nums = first_line.split(',')
     return np.reshape(first_line_nums, (NUM_JOINTS, 3)).astype(float)
 
-def _downsample_image(image, new_res):
-    return misc.imresize(image, new_res)
-    #return cv2.resize(image, new_res)
-
-
-def _read_RGB_image_scipy(image_filepath):
-    image = misc.imread(image_filepath)
-    return image
-
 def _read_RGB_image_opencv(image_filepath):
     image = cv2.imread(image_filepath)
     # COLOR_BGR2RGB requried when working with OpenCV
@@ -521,16 +512,34 @@ def _read_RGB_image_opencv(image_filepath):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return image
 
-def _read_RGB_image(image_filepath, new_res=None, read_image_func=_read_RGB_image_scipy):
+def _get_img_read_func_for_module(module_name):
+    if module_name == 'matplotlib':
+        return mpimg.imread
+    elif module_name == 'scipy':
+        return misc.imread
+    elif module_name == 'opencv':
+        return _read_RGB_image_opencv
+
+def _get_downsample_image_func(module_name):
+    if module_name == 'matplotlib':
+        return misc.imresize
+    elif module_name == 'scipy':
+        return misc.imresize
+    elif module_name == 'opencv':
+        return cv2.resize
+
+def _read_RGB_image(image_filepath, new_res=None, module_name='matplotlib'):
     '''
     Reads RGB image from filepath
     Can downsample image after reading (default is not downsampling)
     :param image_filepath: path to image file
     :return: opencv image object
     '''
-    image = read_image_func(image_filepath)
+    image = _get_img_read_func_for_module(module_name)(image_filepath)
     if new_res:
-        image = _downsample_image(image, (new_res[1], new_res[0]))
+        if module_name == 'opencv':
+            new_res = (new_res[1], new_res[0])
+        image = _get_downsample_image_func(module_name)(image, new_res)
     return image
 
 def show_image(image):
