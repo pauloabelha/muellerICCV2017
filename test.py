@@ -21,7 +21,7 @@ print(image.shape)
 
 print(image)
 plt.imshow(image)
-plt.title("Image SciPy")
+plt.title("Image " + module_name)
 plt.show()
 
 

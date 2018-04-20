@@ -12,6 +12,7 @@ try:
 except:
     pass
 import matplotlib.image as mpimg
+from PIL import Image
 
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
 ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
@@ -520,9 +521,14 @@ def _get_img_read_func_for_module(module_name):
     elif module_name == 'opencv':
         return _read_RGB_image_opencv
 
+def _resize_image_pillow(image, new_res):
+    imagePIL = Image.fromarray(image.astype('uint8'), 'RGB')
+    imagePIL.thumbnail(new_res, Image.ANTIALIAS)
+    return np.array(image)
+
 def _get_downsample_image_func(module_name):
     if module_name == 'matplotlib':
-        return misc.imresize
+        return _resize_image_pillow
     elif module_name == 'scipy':
         return misc.imresize
     elif module_name == 'opencv':
