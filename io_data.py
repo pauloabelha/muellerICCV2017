@@ -9,7 +9,8 @@ import torch.optim as optim
 from scipy import misc
 try:
     import cv2
-except:
+except ImportError:
+    print("WARNING: Ignoring opencv import error")
     pass
 import matplotlib.image as mpimg
 from PIL import Image

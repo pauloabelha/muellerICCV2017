@@ -1,22 +1,23 @@
-import cv2
-import numpy as np
-import io_data
-import camera
-
 try:
-    from matplotlib import pyplot as plt
+    import cv2
 except ImportError:
-    print("Ignoring matplotlib import error")
+    print("WARNING: Ignoring opencv import error")
     pass
-from torch.autograd import Variable
-import torch
 try:
     from torchviz import make_dot
 except ImportError:
-    print("Ignoring torchviz import error")
+    print("WARNING: Ignoring torchviz import error")
     pass
-
-
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    print("WARNING: Ignoring matplotlib import error")
+    pass
+import numpy as np
+import io_data
+import camera
+from torch.autograd import Variable
+import torch
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):
     x = Variable(torch.randn(model_input_shape), requires_grad=True)
