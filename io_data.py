@@ -535,7 +535,7 @@ def _get_downsample_image_func(module_name):
     elif module_name == 'opencv':
         return cv2.resize
 
-def _read_RGB_image(image_filepath, new_res=None, module_name='matplotlib'):
+def _read_RGB_image(image_filepath, new_res=None, module_name='scipy'):
     '''
     Reads RGB image from filepath
     Can downsample image after reading (default is not downsampling)

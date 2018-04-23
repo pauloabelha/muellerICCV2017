@@ -4,8 +4,12 @@ def sample_from_2D_output(output, is_log_prob=True):
     p_choice = output.flatten()
     if is_log_prob:
         p_choice = np.exp(p_choice)
-    output_sample_flat_ix = np.random.choice(range(len(p_choice)),
-                                             size=None, replace=False, p=p_choice)
+    try:
+        output_sample_flat_ix = np.random.choice(range(len(p_choice)),
+                                                 size=None, replace=False, p=p_choice)
+    except:
+        print("WARNING: Could not sample from 2D output! Setting sample to 0.\n" + str(p_choice))
+        output_sample_flat_ix = 0
     output_sample = np.unravel_index(output_sample_flat_ix, output.shape)
     output_sample_prob = p_choice[output_sample_flat_ix]
     return output_sample, output_sample_prob
