@@ -155,6 +155,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 trainer.save_checkpoint(checkpoint_model_dict,
                                         filename=CHECKPOINT_FILENAMEBASE + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
+                if not control_vars['output_filepath'] == '':
+                    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
+
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
                      str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
@@ -163,12 +166,12 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             control_vars['tot_toc'] = display_est_time_loop(control_vars['tot_toc'] + time.time() - start,
                                                             control_vars['curr_iter'], control_vars['num_iter'],
                                                             prefix=prefix)
+
             control_vars['curr_iter'] += 1
             control_vars['start_iter'] = control_vars['curr_iter'] + 1
             control_vars['curr_epoch_iter'] += 1
 
-            if not control_vars['output_filepath'] == '':
-                os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
+
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
