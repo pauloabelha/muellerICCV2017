@@ -18,13 +18,10 @@ from PIL import Image
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
 ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
 HALNET_DATA_FILENAME = "HALNet_data.p"
-#DATASET_PATH = "/home/paulo/synthhands/example_data/"
 # resolution in rows x cols
-LABEL_RESOLUTION_HALNET = (240, 320)
+LABEL_RESOLUTION_HALNET = (320, 240)
 IMAGE_RES_ORIG = (480, 640)
-IMAGE_RES_HALNET = (240, 320)
-NUM_LOSSES = 4
-LOSSES_RES = [(320, 240), (160, 120), (160, 120), (40, 30)]
+IMAGE_RES_HALNET = (320, 240)
 NUM_JOINTS = 21
 
 def load_checkpoint(filename, model_class, num_iter=0, log_interval=0,
@@ -230,8 +227,9 @@ def _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict):
 
     # get data
     RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
-    data = np.swapaxes(RGBD_image, 0, 2).astype(np.float)
-    data = torch.from_numpy(data).float()
+    RGBD_image = RGBD_image.swapaxes(1, 2).swapaxes(0, 1)
+    #data = RGBD_image.astype(np.float)
+    data = torch.from_numpy(RGBD_image).float()
     return data
 
 def _get_labels(filenamebase_key, labels_dict, joint_ixs):
@@ -382,64 +380,6 @@ def split_train_test_data(X, Y, perc_train):
     X_test = X[~train_ixs]
     Y_test = Y[~train_ixs]
     return X_train, Y_train, X_test, Y_test, train_ixs
-
-
-
-
-
-def load_HALNet_data(perc_train=0.8):
-    '''
-
-    :param dataset_filepath: path to the dataset base root,
-        where all label files are (e.g. ~/synthhands_release/')
-    :param perc_train: percentage of training samples
-    :return: X_train, Y_train, X_test, Y_test
-    '''
-    try:
-        print("Loading HALNet data from file: " + HALNET_DATA_FILENAME)
-        data = pickle.load(open(HALNET_DATA_FILENAME, "rb"))
-        X_train, Y_train, X_test, Y_test, files_namebase, train_ixs = data
-    except:
-        print("Could not load data file " +
-              HALNET_DATA_FILENAME +
-              ". Creating new one from synthhand dataset...")
-        X, Y, files_namebase = load_images_and_labels()
-        train_ixs = get_train_ixs(Y.shape[0], perc_train)
-        files_namebase = np.append(files_namebase[~train_ixs],
-                                   files_namebase[train_ixs])
-        X_train = X[train_ixs]
-        X_test = X[~train_ixs]
-        Y_train = []
-        Y_test = []
-        for ix_loss in range(NUM_LOSSES):
-            Y_heatmap = np.zeros((Y.shape[0],
-                                  LOSSES_RES[ix_loss][0],
-                                  LOSSES_RES[ix_loss][1]))
-            for ix_sample in range(Y.shape[0]):
-                Y_heatmap[ix_sample] =\
-                    convert_color_space_label_to_heatmap(
-                        Y[ix_sample, 0, :], LOSSES_RES[ix_loss])
-            Y_heatmap_train = Y_heatmap[train_ixs]
-            Y_heatmap_test = Y_heatmap[~train_ixs]
-            Y_train.append(Y_heatmap_train)
-            Y_test.append(Y_heatmap_test)
-        data = [X_train, Y_train, X_test, Y_test, files_namebase, train_ixs]
-        pickle.dump(data, open(HALNET_DATA_FILENAME, "wb"))
-    print("Data loaded")
-    print("Reformatting data...")
-    X_train = np.swapaxes(X_train, 1, 3)
-    #X_train = np.swapaxes(X_train, 2, 3)
-    X_train = torch.from_numpy(X_train.astype(np.float))
-    for i in range(len(Y_train)):
-        Y_train[i] = torch.from_numpy(Y_train[i].astype(np.float64))
-    X_test = torch.from_numpy(X_test.astype(np.float))
-    X_test = np.swapaxes(X_test, 1, 3)
-    #X_test = np.swapaxes(X_test, 2, 3)
-    for i in range(len(Y_test)):
-        Y_test[i] = torch.from_numpy(Y_test[i].astype(np.float))
-    print("Data ready")
-    return X_train, Y_train, X_test, Y_test, files_namebase, train_ixs
-
 
 def load_images_and_labels():
     '''

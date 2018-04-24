@@ -82,6 +82,16 @@ def parse_args(model_class):
     args.joint_ixs = list(map(int, args.joint_ixs))
 
     control_vars, train_vars = initialize_vars(args)
+    if control_vars['output_filepath'] == '':
+        print_verbose("No output filepath specified", args.verbose)
+    else:
+        f = open('temp_output.txt', 'w')
+        print_verbose("Printing all to output filepath: " + args.output_filepath, args.verbose)
+        print_verbose("File will be closed and re-opened every " +
+                      str(control_vars['log_interval']) + " iteration(s)", args.verbose)
+        sys.stdout = f
+
+
     if args.checkpoint_filepath == '':
         print_verbose("Creating network from scratch", args.verbose)
         print_verbose("Building network...", args.verbose)
@@ -110,12 +120,7 @@ def parse_args(model_class):
 
     control_vars['num_epochs'] = 100
     control_vars['verbose'] = True
-    control_vars['output_filepath'] = ''
-    if control_vars['output_filepath'] == '':
-        print_verbose("No output filepath specified", args.verbose)
-    else:
-        f = open(args.output_filepath, 'w')
-        sys.stdout = f
+
 
     if train_vars['cross_entropy']:
         print_verbose("Using cross entropy loss", args.verbose)

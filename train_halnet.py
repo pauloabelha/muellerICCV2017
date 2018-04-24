@@ -8,6 +8,7 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
+import sys, os
 
 CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
 
@@ -165,6 +166,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             control_vars['curr_iter'] += 1
             control_vars['start_iter'] = control_vars['curr_iter'] + 1
             control_vars['curr_epoch_iter'] += 1
+
+            if not control_vars['output_filepath'] == '':
+                os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -198,6 +202,9 @@ print_verbose("-----------------------------------------------------------", con
 model.train()
 control_vars['curr_iter'] = 1
 
+if not control_vars['output_filepath'] == '':
+    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
+
 for epoch in range(control_vars['num_epochs']):
     control_vars['curr_epoch_iter'] = 1
     if epoch + 1 < control_vars['start_epoch']:
@@ -211,4 +218,8 @@ for epoch in range(control_vars['num_epochs']):
     # train model
     train_vars, control_vars = train(train_loader, model, optimizer, train_vars, control_vars, control_vars['verbose'])
     if control_vars['done_training']:
+        print_verbose("Done training.", control_vars['verbose'])
         break
+
+if not control_vars['output_filepath'] == '':
+    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
