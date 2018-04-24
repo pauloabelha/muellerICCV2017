@@ -160,8 +160,10 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
 
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
-                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) + '/' +\
+                     str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) +\
+                     '(' + str(control_vars['iter_size']) + ')' + '/' +\
                      str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) +\
+                     '(' + str(control_vars['batch_size']) + ')' +\
                      ' - log every ' + str(control_vars['log_interval']) + ' iter): '
             control_vars['tot_toc'] = display_est_time_loop(control_vars['tot_toc'] + time.time() - start,
                                                             control_vars['curr_iter'], control_vars['num_iter'],
