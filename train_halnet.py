@@ -192,7 +192,7 @@ msg += print_verbose("----------------------------------------------------------
 msg += print_verbose("Model info", control_vars['verbose'])
 msg += print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose'])
 msg += print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose'])
-msg += msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
 msg += print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose'])
 msg += print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), control_vars['verbose'])
 msg += print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose'])
