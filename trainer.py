@@ -85,12 +85,9 @@ def parse_args(model_class):
     if control_vars['output_filepath'] == '':
         print_verbose("No output filepath specified", args.verbose)
     else:
-        f = open('temp_output.txt', 'w')
-        print_verbose("Printing all to output filepath: " + args.output_filepath, args.verbose)
-        print_verbose("File will be closed and re-opened every " +
-                      str(control_vars['log_interval']) + " iteration(s)", args.verbose)
-        sys.stdout = f
-
+        msg = print_verbose("Printing also to output filepath: " + control_vars['output_filepath'], args.verbose)
+        with open(control_vars['output_filepath'], 'w+') as f:
+            f.write(msg + '\n')
 
     if args.checkpoint_filepath == '':
         print_verbose("Creating network from scratch", args.verbose)

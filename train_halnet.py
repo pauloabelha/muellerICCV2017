@@ -8,7 +8,6 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
-import sys, os
 
 CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
 
@@ -159,8 +158,6 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 trainer.save_checkpoint(checkpoint_model_dict,
                                         filename=CHECKPOINT_FILENAMEBASE + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
-                if not control_vars['output_filepath'] == '':
-                    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
 
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
@@ -190,29 +187,31 @@ control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_si
 control_vars['tot_iter'] = int(len(train_loader) / control_vars['iter_size'])
 control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
 
-print_verbose("-----------------------------------------------------------", control_vars['verbose'])
-print_verbose("Model info", control_vars['verbose'])
-print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose'])
-print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose'])
-print_verbose("-----------------------------------------------------------", control_vars['verbose'])
-print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose'])
-print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), control_vars['verbose'])
-print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose'])
-print_verbose("Starting epoch: " + str(control_vars['start_epoch']), control_vars['verbose'])
-print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), control_vars['verbose'])
-print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), control_vars['verbose'])
-print_verbose("-----------------------------------------------------------", control_vars['verbose'])
-print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), control_vars['verbose'])
-print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), control_vars['verbose'])
-print_verbose("Approximate number of epochs to train: " +
+msg = ''
+msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+msg += print_verbose("Model info", control_vars['verbose'])
+msg += print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose'])
+msg += print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose'])
+msg += msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+msg += print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose'])
+msg += print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), control_vars['verbose'])
+msg += print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose'])
+msg += print_verbose("Starting epoch: " + str(control_vars['start_epoch']), control_vars['verbose'])
+msg += print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), control_vars['verbose'])
+msg += print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), control_vars['verbose'])
+msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+msg += print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), control_vars['verbose'])
+msg += print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), control_vars['verbose'])
+msg += print_verbose("Approximate number of epochs to train: " +
               str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), control_vars['verbose'])
-print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+msg += print_verbose("-----------------------------------------------------------", control_vars['verbose'])
+
+if not control_vars['output_filepath'] == '':
+    with open(control_vars['output_filepath'], 'w+') as f:
+        f.write(msg + '\n')
 
 model.train()
 control_vars['curr_iter'] = 1
-
-if not control_vars['output_filepath'] == '':
-    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
 
 for epoch in range(control_vars['num_epochs']):
     control_vars['curr_epoch_iter'] = 1
@@ -229,6 +228,3 @@ for epoch in range(control_vars['num_epochs']):
     if control_vars['done_training']:
         print_verbose("Done training.", control_vars['verbose'])
         break
-
-if not control_vars['output_filepath'] == '':
-    os.popen('cp ' + 'temp_output.txt ' + control_vars['output_filepath'])
