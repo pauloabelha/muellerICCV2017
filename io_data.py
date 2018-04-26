@@ -15,8 +15,9 @@ except ImportError:
 import matplotlib.image as mpimg
 from PIL import Image
 
-ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
-ORIG_DATASET_ROOT_FOLDER = ROOT_FOLDER + '../SynthHands_Release/'
+#ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
+ROOT_FOLDER = '/home/paulo/rds_muri/paulo/synthhands/'
+DATASET_ROOT_FOLDER = ROOT_FOLDER + 'SynthHands_Release/'
 HALNET_DATA_FILENAME = "HALNet_data.p"
 # resolution in rows x cols
 LABEL_RESOLUTION_HALNET = (320, 240)
@@ -77,69 +78,66 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
 
+def load_dataset_split(root_folder=ROOT_FOLDER):
+    return pickle.load(open(root_folder + "dataset_split_files.p", "rb"))
 
-def load_dataset_split():
-    return pickle.load(open(ROOT_FOLDER + "dataset_split_files.p", "rb"))
+def save_dataset_split(dataset_root_folder=DATASET_ROOT_FOLDER, perc_train=0.7, perc_valid=0.15, perc_test=0.15):
 
-def save_dataset_split(orig_dataset_root_folder=ORIG_DATASET_ROOT_FOLDER,
-                       perc_train=0.9, perc_valid=0.05, perc_test=0.05):
-    color_on_depth_images_dict = {}
-    depth_images_dict = {}
-    labels_dict = {}
-    filenamebase_keys = []
-    print("Recursively traversing all files in root folder: " + ORIG_DATASET_ROOT_FOLDER)
-    for root, dirs, files in os.walk(orig_dataset_root_folder, topdown=True):
+    print("Recursively traversing all files in root folder: " + dataset_root_folder)
+    orig_num_tabs = len(dataset_root_folder.split('/'))
+    len_root_folder = len(dataset_root_folder)
+    num_files_to_process = 0
+    for root, dirs, files in os.walk(dataset_root_folder, topdown=True):
         for filename in sorted(files):
             if filename[-18:-4] == 'color_on_depth':
-                filebaseprefix = os.path.join(root, filename[0:8])
-                color_on_depth_images_dict[filebaseprefix] = os.path.join(root, filename)
-                filenamebase_keys.append(filebaseprefix)
-            elif filename[-9:-4] == 'depth':
-                filebaseprefix = os.path.join(root, filename[0:8])
-                depth_images_dict[filebaseprefix] = os.path.join(root, filename)
-            elif filename[-13:-4] == 'joint_pos':
-                filebaseprefix = os.path.join(root, filename[0:8])
-                labels_dict[filebaseprefix] = os.path.join(root, filename)
+                num_files_to_process += 1
+        tabs = '  ' * (len(root.split('/')) - orig_num_tabs)
+        print('Counting files (' + str(num_files_to_process) + ')' +  tabs + root)
+    print("Number of files to process: " + str(num_files_to_process))
+    filenamebases = [0] * num_files_to_process
+    ix = 0
+    for root, dirs, files in os.walk(dataset_root_folder, topdown=True):
+        for filename in sorted(files):
+            if filename[-18:-4] == 'color_on_depth':
+                filenamebases[ix] = os.path.join(root, filename[0:8])[len_root_folder:]
+                ix += 1
+        tabs = '  ' * (len(root.split('/')) - orig_num_tabs)
+        print(str(ix) + '/' + str(num_files_to_process) + ' files processed : ' + tabs + root)
     print("Done traversing files")
     print("Randomising file names...")
-    ixs_randomize = np.random.choice(len(filenamebase_keys), len(filenamebase_keys), replace=False)
-    filenamebase_keys = np.array(filenamebase_keys)
-    filenamebase_keys_randomized = filenamebase_keys[ixs_randomize]
+    ixs_randomize = np.random.choice(len(filenamebases), len(filenamebases), replace=False)
+    filenamebases = np.array(filenamebases)
+    filenamebases_randomized = filenamebases[ixs_randomize]
     print("Splitting into training, validation and test sets...")
-    num_train = int(np.floor(len(filenamebase_keys) * perc_train))
-    num_valid = int(np.floor(len(filenamebase_keys) * perc_valid))
-    num_test = int(np.floor(len(filenamebase_keys) * perc_test))
-    filenamebase_keys_train = filenamebase_keys_randomized[0: num_train]
-    filenamebase_keys_valid = filenamebase_keys_randomized[num_train: num_train + num_valid]
-    filenamebase_keys_test = filenamebase_keys_randomized[num_train + num_valid:]
+    num_train = int(np.floor(len(filenamebases) * perc_train))
+    num_valid = int(np.floor(len(filenamebases) * perc_valid))
+    filenamebases_train = filenamebases_randomized[0: num_train]
+    filenamebases_valid = filenamebases_randomized[num_train: num_train + num_valid]
+    filenamebases_test = filenamebases_randomized[num_train + num_valid:]
     print("Dataset split")
     print("Percentages of split: training " + str(perc_train*100) + "%, " +
           "validation " + str(perc_valid*100) + "% and " +
           "test " + str(perc_test*100) + "%")
-    print("Number of files of split: training " + str(len(filenamebase_keys_train)) + ", " +
-          "validation " + str(len(filenamebase_keys_valid)) + " and " +
-          "test " + str(len(filenamebase_keys_test)))
+    print("Number of files of split: training " + str(len(filenamebases_train)) + ", " +
+          "validation " + str(len(filenamebases_valid)) + " and " +
+          "test " + str(len(filenamebases_test)))
     print("Saving split into pickle file: " + 'dataset_split_files.p')
     data = {
-            'orig_dataset_root_folder': orig_dataset_root_folder,
+            'dataset_root_folder': dataset_root_folder,
             'perc_train': perc_train,
             'perc_valid': perc_valid,
             'perc_test': perc_test,
-            'filenamebase_keys': filenamebase_keys,
-            'color_on_depth_images_dict': color_on_depth_images_dict,
-            'depth_images_dict': depth_images_dict,
-            'labels_dict': labels_dict,
+            'filenamebases': filenamebases,
             'ixs_randomize': ixs_randomize,
-            'filenamebase_keys_train': filenamebase_keys_train,
-            'filenamebase_keys_valid': filenamebase_keys_valid,
-            'filenamebase_keys_test': filenamebase_keys_test
+            'filenamebases_train': filenamebases_train,
+            'filenamebases_valid': filenamebases_valid,
+            'filenamebases_test': filenamebases_test
             }
     with open('dataset_split_files.p', 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def normalize_output(output):
     output_positive = output + abs(np.min(output, axis=(0, 1)))
-    #print(np.min(output_positive, axis=(0, 1)))
     norm_output = output_positive / np.sum(output_positive, axis=(0, 1))
     return norm_output
 
@@ -189,42 +187,16 @@ def convert_color_space_label_to_heatmap(color_space_label, heatmap_res):
     heatmap[new_ix_res1, new_ix_res2] = 1 - (SMALL_PROB * heatmap.size)
     return heatmap
 
-def _load_dicts_color_depth_labels(root_dir):
-    color_on_depth_images_dict = {}
-    depth_images_dict = {}
-    labels_dict = {}
-    filenamebase_keys = []
-
-    for root, dirs, files in os.walk(root_dir, topdown=True):
-        for filename in files:
-            file_ext = os.path.splitext(filename)[1][1:]
-            curr_file_namebase = filename.split('_')[0]
-            if filename[-18:-4] == 'color_on_depth':
-                color_on_depth_images_dict[curr_file_namebase] = \
-                    os.path.join(root, filename)
-                filenamebase_keys.append(curr_file_namebase)
-            elif filename[-9:-4] == 'depth':
-                depth_images_dict[curr_file_namebase] = \
-                    os.path.join(root, filename)
-            elif file_ext == 'txt':
-                labels_dict[curr_file_namebase] = \
-                    os.path.join(root, filename)
-    return color_on_depth_images_dict, depth_images_dict, \
-           labels_dict, filenamebase_keys
-
-def _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict):
+def _get_data(filenamebase, root_folder=DATASET_ROOT_FOLDER,
+              depth_suffix='_depth.png',
+              color_on_depth_suffix='_color_on_depth.png'):
     # load color
-    color_on_depth_image_filename = color_on_depth_images_dict[filenamebase_key]
-    color_on_depth_image = \
-        _read_RGB_image(color_on_depth_image_filename, new_res=IMAGE_RES_HALNET)
-
+    color_on_depth_image_filename = root_folder + filenamebase + color_on_depth_suffix
+    color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=IMAGE_RES_HALNET)
     # load depth
-    depth_image_filename = depth_images_dict[filenamebase_key]
-    depth_image = \
-        _read_RGB_image(depth_image_filename, new_res=IMAGE_RES_HALNET)
-    depth_image = np.reshape(depth_image,
-                             (depth_image.shape[0], depth_image.shape[1], 1))
-
+    depth_image_filename = root_folder + filenamebase + depth_suffix
+    depth_image = _read_RGB_image(depth_image_filename, new_res=IMAGE_RES_HALNET)
+    depth_image = np.reshape(depth_image, (depth_image.shape[0], depth_image.shape[1], 1))
     # get data
     RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
     RGBD_image = RGBD_image.swapaxes(1, 2).swapaxes(0, 1)
@@ -232,9 +204,10 @@ def _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict):
     data = torch.from_numpy(RGBD_image).float()
     return data
 
-def _get_labels(filenamebase_key, labels_dict, joint_ixs):
+def _get_labels(filenamebase, joint_ixs, root_folder=DATASET_ROOT_FOLDER, label_suffix='_joint_pos.txt'):
     # get label
-    label_depth_space = _read_label(labels_dict[filenamebase_key])
+    label_filename = root_folder + filenamebase + label_suffix
+    label_depth_space = _read_label(label_filename)
     label_color_space = np.zeros((label_depth_space.shape[0], 2))
     for i in range(label_depth_space.shape[0]):
         label_color_space[i, 0], label_color_space[i, 1] \
@@ -253,60 +226,43 @@ def _get_labels(filenamebase_key, labels_dict, joint_ixs):
     labels = torch.from_numpy(labels).float()
     return (labels, labels_joints)
 
-def _get_data_labels(idx, labels_dict, color_on_depth_images_dict,
-                      depth_images_dict, filenamebase_keys, joint_ixs):
-    filenamebase_key = filenamebase_keys[idx]
-    data = _get_data(filenamebase_key, color_on_depth_images_dict, depth_images_dict)
-    labels = _get_labels(filenamebase_key, labels_dict, joint_ixs)
+def _get_data_labels(idx, filenamebases, joint_ixs):
+    filenamebase = filenamebases[idx]
+    data = _get_data(filenamebase)
+    labels = _get_labels(filenamebase, joint_ixs)
     return data, labels
 
 class SynthHandsDataset(Dataset):
     type = ''
     root_dir = ''
-    labels_dict = {}
-    color_on_depth_images_dict = {}
-    depth_images_dict = {}
-    filenamebase_keys = []
+    filenamebases = []
     joint_ixs = []
+    length = 0
 
     def __init__(self, joint_ixs, type):
         self.type = type
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split()
-        self.filenamebase_keys = dataset_split_files['filenamebase_keys_' + self.type]
-        self.color_on_depth_images_dict = \
-            { your_key: dataset_split_files['color_on_depth_images_dict'][your_key]
-              for your_key in self.filenamebase_keys}
-        self.depth_images_dict = \
-            {your_key: dataset_split_files['depth_images_dict'][your_key]
-             for your_key in self.filenamebase_keys}
-        self.labels_dict = \
-            {your_key: dataset_split_files['labels_dict'][your_key]
-             for your_key in self.filenamebase_keys}
+        self.filenamebases = dataset_split_files['filenamebases_' + self.type]
+        self.length = len(self.filenamebases)
 
     def __getitem__(self, idx):
-        return _get_data_labels(idx, self.labels_dict,
-                                self.color_on_depth_images_dict,
-                                self.depth_images_dict,
-                                self.filenamebase_keys,
-                                self.joint_ixs)
+        return _get_data_labels(idx, self.filenamebases, self.joint_ixs)
 
     def get_raw_joints_of_example_ix(self, example_ix):
-        filenamebase = self.filenamebase_keys[example_ix]
-        return _read_label(self.labels_dict[filenamebase])
+        return _read_label(self.filenamebases[example_ix])
 
     def get_colorspace_joint_of_example_ix(self, example_ix, joint_ix):
         prop_res_u = IMAGE_RES_HALNET[0] / IMAGE_RES_ORIG[0]
         prop_res_v = IMAGE_RES_HALNET[1] / IMAGE_RES_ORIG[1]
-        filenamebase = self.filenamebase_keys[example_ix]
-        label = _read_label(self.labels_dict[filenamebase])
+        label = _read_label(self.filenamebases[example_ix])
         u, v = camera.get_joint_in_color_space(label[joint_ix])
         u = int(u * prop_res_u)
         v = int(v * prop_res_v)
         return u, v
 
     def __len__(self):
-        return len(self.filenamebase_keys)
+        return self.length
 
 class SynthHandsTrainDataset(SynthHandsDataset):
      type = 'train'

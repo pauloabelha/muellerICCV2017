@@ -2,6 +2,5 @@
 __py_cache__/*
 *.pyc
 *.pth.tar
-dataset_split_files.p
 tsne.py
 .idea/workspace.py

@@ -115,35 +115,39 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                     'control_vars': control_vars,
                     'train_vars': train_vars,
                 }
-                trainer.save_checkpoint(checkpoint_model_dict,
-                                        filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Total loss: " + str(total_loss), verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
+                trainer.save_checkpoint(checkpoint_model_dict, filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
+                msg = ''
+                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                msg += print_verbose("Total loss: " + str(total_loss), verbose)
+                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                msg += print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
                       " iterations (average total loss): " + str(
                     np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Joint pixel losses:", verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                msg += print_verbose("Joint pixel losses:", verbose)
+                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose)
                 for joint_ix in model.joint_ixs:
-                    print_verbose("\tJoint index: " + str(joint_ix), verbose)
-                    print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
+                    msg += print_verbose("\tJoint index: " + str(joint_ix), verbose)
+                    msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss): " +
                           str(np.mean(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose)
-                    print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
+                    msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss): " +
                           str(np.std(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose)
-                    print_verbose("\tThis is the last pixel dist loss: " + str(train_vars['pixel_losses'][-1][joint_ix]), verbose)
-                    print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
+                    msg += print_verbose("\tThis is the last pixel dist loss: " + str(train_vars['pixel_losses'][-1][joint_ix]), verbose)
+                    msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss of sample): " +
                           str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
-                    print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
+                    msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
                           " iterations (average pixel loss of sample): " +
                           str(np.std(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose)
-                    print_verbose("\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]), verbose)
-                    print_verbose("\t-------------------------------------------------------------------------------------------", verbose)
-                    print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                    msg += print_verbose("\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]), verbose)
+                    msg += print_verbose("\t-------------------------------------------------------------------------------------------", verbose)
+                    msg += print_verbose("-------------------------------------------------------------------------------------------", verbose)
+                if not control_vars['output_filepath'] == '':
+                    with open(control_vars['output_filepath'], 'w+') as f:
+                        f.write(msg + '\n')
+
             if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
                 print_verbose("\nSaving model and checkpoint model for validation", verbose)
                 checkpoint_model_dict = {

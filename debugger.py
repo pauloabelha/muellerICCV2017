@@ -4,11 +4,13 @@ import probs
 
 def print_verbose(str, verbose, n_tabs=0, erase_line=False):
     prefix = '\t' * n_tabs
+    msg = prefix + str
     if verbose:
         if erase_line:
-            print(prefix + str, end='')
+            print(msg, end='')
         else:
             print(prefix + str)
+    return msg
 
 def show_target_and_output_to_image_info(data, target, output, debug_visually=True):
     BATCH_IDX = 0
