@@ -202,7 +202,7 @@ msg += print_verbose("Starting overall iteration: " + str(control_vars['start_it
 msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "/n"
 msg += print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), control_vars['verbose']) + "/n"
 msg += print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), control_vars['verbose']) + "/n"
-msg += print_verbose("Approximate number of epochs to train: " + + "/n"
+msg += print_verbose("Approximate number of epochs to train: " +
               str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), control_vars['verbose']) + "/n"
 msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "/n"
 
