@@ -1,219 +1,221 @@
 -----------------------------------------------------------
+Output filenamebase: validated_halnet_log_1521646825.txt
 Model info
 Number of joints: 21
 Joints indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 -----------------------------------------------------------
 Max memory batch size: 2
-Length of dataset (in max mem batch size): 64972
+Length of dataset (in max mem batch size): 13923
 Training batch size: 16
 Starting epoch: 1
 Starting epoch iteration: 1
 Starting overall iteration: 1
 -----------------------------------------------------------
-Number of iterations per epoch: 8121
-Number of iterations to train: 100000
-Approximate number of epochs to train: 12.3
+Number of iterations per epoch: 1740
+Number of iterations to train: 100
+Approximate number of epochs to train: 0.1
 -----------------------------------------------------------
 
 -------------------------------------------------------------------------------------------
-Training (Epoch #0 1/8121), (Batch 8(8)/64972), (Iter #1(16) - log every 1 iter): 
+Training (Epoch #0 1/1740), (Batch 8(8)/13923), (Iter #1(16) - log every 1 iter): 
 -------------------------------------------------------------------------------------------
-Total loss: 597.4098510742188
--------------------------------------------------------------------------------------------
-Training set mean error for last 1 iterations (average total loss): 597.4098510742188
+Current loss: 515.1481323242188
+Best loss: 515.1481323242188
+Mean total loss: 515.1481323242188
+Mean loss for last 1 iterations (average total loss): 515.1481323242188
 -------------------------------------------------------------------------------------------
 Joint pixel losses:
 -------------------------------------------------------------------------------------------
 	Joint index: 0
-	Training set mean error for last 1 iterations (average pixel loss): 95.4
+	Training set mean error for last 1 iterations (average pixel loss): 54.3
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 95.4
-	Training set mean error for last 1 iterations (average pixel loss of sample): 118.2
+	This is the last pixel dist loss: 54.3
+	Training set mean error for last 1 iterations (average pixel loss of sample): 107.8
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 118.2
+	This is the last pixel dist loss of sample: 107.8
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 1
-	Training set mean error for last 1 iterations (average pixel loss): 90.3
+	Training set mean error for last 1 iterations (average pixel loss): 25.4
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 90.3
-	Training set mean error for last 1 iterations (average pixel loss of sample): 106.4
+	This is the last pixel dist loss: 25.4
+	Training set mean error for last 1 iterations (average pixel loss of sample): 44.9
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 106.4
+	This is the last pixel dist loss of sample: 44.9
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 2
-	Training set mean error for last 1 iterations (average pixel loss): 94.6
+	Training set mean error for last 1 iterations (average pixel loss): 41.5
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 94.6
-	Training set mean error for last 1 iterations (average pixel loss of sample): 126.9
+	This is the last pixel dist loss: 41.5
+	Training set mean error for last 1 iterations (average pixel loss of sample): 68.0
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 126.9
+	This is the last pixel dist loss of sample: 68.0
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 3
-	Training set mean error for last 1 iterations (average pixel loss): 84.5
+	Training set mean error for last 1 iterations (average pixel loss): 42.8
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 84.5
-	Training set mean error for last 1 iterations (average pixel loss of sample): 105.2
+	This is the last pixel dist loss: 42.8
+	Training set mean error for last 1 iterations (average pixel loss of sample): 69.8
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 105.2
+	This is the last pixel dist loss of sample: 69.8
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 4
-	Training set mean error for last 1 iterations (average pixel loss): 111.6
+	Training set mean error for last 1 iterations (average pixel loss): 38.3
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 111.6
-	Training set mean error for last 1 iterations (average pixel loss of sample): 100.7
+	This is the last pixel dist loss: 38.3
+	Training set mean error for last 1 iterations (average pixel loss of sample): 79.1
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 100.7
+	This is the last pixel dist loss of sample: 79.1
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 5
-	Training set mean error for last 1 iterations (average pixel loss): 85.2
+	Training set mean error for last 1 iterations (average pixel loss): 31.8
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 85.2
-	Training set mean error for last 1 iterations (average pixel loss of sample): 98.9
+	This is the last pixel dist loss: 31.8
+	Training set mean error for last 1 iterations (average pixel loss of sample): 68.5
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 98.9
+	This is the last pixel dist loss of sample: 68.5
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 6
-	Training set mean error for last 1 iterations (average pixel loss): 81.4
+	Training set mean error for last 1 iterations (average pixel loss): 33.7
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 81.4
-	Training set mean error for last 1 iterations (average pixel loss of sample): 84.5
+	This is the last pixel dist loss: 33.7
+	Training set mean error for last 1 iterations (average pixel loss of sample): 61.7
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 84.5
+	This is the last pixel dist loss of sample: 61.7
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 7
-	Training set mean error for last 1 iterations (average pixel loss): 116.4
+	Training set mean error for last 1 iterations (average pixel loss): 36.9
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 116.4
-	Training set mean error for last 1 iterations (average pixel loss of sample): 97.5
+	This is the last pixel dist loss: 36.9
+	Training set mean error for last 1 iterations (average pixel loss of sample): 73.3
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 97.5
+	This is the last pixel dist loss of sample: 73.3
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 8
-	Training set mean error for last 1 iterations (average pixel loss): 115.6
+	Training set mean error for last 1 iterations (average pixel loss): 35.3
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 115.6
-	Training set mean error for last 1 iterations (average pixel loss of sample): 111.5
+	This is the last pixel dist loss: 35.3
+	Training set mean error for last 1 iterations (average pixel loss of sample): 53.2
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 111.5
+	This is the last pixel dist loss of sample: 53.2
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 9
-	Training set mean error for last 1 iterations (average pixel loss): 99.9
+	Training set mean error for last 1 iterations (average pixel loss): 29.9
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 99.9
-	Training set mean error for last 1 iterations (average pixel loss of sample): 104.6
+	This is the last pixel dist loss: 29.9
+	Training set mean error for last 1 iterations (average pixel loss of sample): 84.6
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 104.6
+	This is the last pixel dist loss of sample: 84.6
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 10
-	Training set mean error for last 1 iterations (average pixel loss): 107.1
+	Training set mean error for last 1 iterations (average pixel loss): 37.5
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 107.1
-	Training set mean error for last 1 iterations (average pixel loss of sample): 126.2
+	This is the last pixel dist loss: 37.5
+	Training set mean error for last 1 iterations (average pixel loss of sample): 93.3
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 126.2
+	This is the last pixel dist loss of sample: 93.3
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 11
-	Training set mean error for last 1 iterations (average pixel loss): 83.6
+	Training set mean error for last 1 iterations (average pixel loss): 38.4
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 83.6
-	Training set mean error for last 1 iterations (average pixel loss of sample): 118.5
+	This is the last pixel dist loss: 38.4
+	Training set mean error for last 1 iterations (average pixel loss of sample): 104.8
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 118.5
+	This is the last pixel dist loss of sample: 104.8
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 12
-	Training set mean error for last 1 iterations (average pixel loss): 105.6
+	Training set mean error for last 1 iterations (average pixel loss): 38.0
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 105.6
-	Training set mean error for last 1 iterations (average pixel loss of sample): 120.3
+	This is the last pixel dist loss: 38.0
+	Training set mean error for last 1 iterations (average pixel loss of sample): 126.6
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 120.3
+	This is the last pixel dist loss of sample: 126.6
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 13
-	Training set mean error for last 1 iterations (average pixel loss): 99.9
+	Training set mean error for last 1 iterations (average pixel loss): 27.2
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 99.9
-	Training set mean error for last 1 iterations (average pixel loss of sample): 112.0
+	This is the last pixel dist loss: 27.2
+	Training set mean error for last 1 iterations (average pixel loss of sample): 82.8
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 112.0
+	This is the last pixel dist loss of sample: 82.8
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 14
-	Training set mean error for last 1 iterations (average pixel loss): 95.5
+	Training set mean error for last 1 iterations (average pixel loss): 30.8
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 95.5
-	Training set mean error for last 1 iterations (average pixel loss of sample): 130.0
+	This is the last pixel dist loss: 30.8
+	Training set mean error for last 1 iterations (average pixel loss of sample): 75.7
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 130.0
+	This is the last pixel dist loss of sample: 75.7
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 15
-	Training set mean error for last 1 iterations (average pixel loss): 103.0
+	Training set mean error for last 1 iterations (average pixel loss): 28.3
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 103.0
-	Training set mean error for last 1 iterations (average pixel loss of sample): 121.3
+	This is the last pixel dist loss: 28.3
+	Training set mean error for last 1 iterations (average pixel loss of sample): 62.8
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 121.3
+	This is the last pixel dist loss of sample: 62.8
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 16
-	Training set mean error for last 1 iterations (average pixel loss): 91.3
+	Training set mean error for last 1 iterations (average pixel loss): 34.3
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 91.3
-	Training set mean error for last 1 iterations (average pixel loss of sample): 96.8
+	This is the last pixel dist loss: 34.3
+	Training set mean error for last 1 iterations (average pixel loss of sample): 100.2
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 96.8
+	This is the last pixel dist loss of sample: 100.2
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 17
-	Training set mean error for last 1 iterations (average pixel loss): 97.0
+	Training set mean error for last 1 iterations (average pixel loss): 40.5
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 97.0
-	Training set mean error for last 1 iterations (average pixel loss of sample): 92.2
+	This is the last pixel dist loss: 40.5
+	Training set mean error for last 1 iterations (average pixel loss of sample): 66.3
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 92.2
+	This is the last pixel dist loss of sample: 66.3
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 18
-	Training set mean error for last 1 iterations (average pixel loss): 92.3
+	Training set mean error for last 1 iterations (average pixel loss): 38.2
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 92.3
-	Training set mean error for last 1 iterations (average pixel loss of sample): 102.7
+	This is the last pixel dist loss: 38.2
+	Training set mean error for last 1 iterations (average pixel loss of sample): 120.9
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 102.7
+	This is the last pixel dist loss of sample: 120.9
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 19
-	Training set mean error for last 1 iterations (average pixel loss): 106.9
+	Training set mean error for last 1 iterations (average pixel loss): 38.1
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 106.9
-	Training set mean error for last 1 iterations (average pixel loss of sample): 112.4
+	This is the last pixel dist loss: 38.1
+	Training set mean error for last 1 iterations (average pixel loss of sample): 59.3
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 112.4
+	This is the last pixel dist loss of sample: 59.3
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 	Joint index: 20
-	Training set mean error for last 1 iterations (average pixel loss): 85.2
+	Training set mean error for last 1 iterations (average pixel loss): 51.7
 	Training set stddev error for last 1 iterations (average pixel loss): 0.0
-	This is the last pixel dist loss: 85.2
-	Training set mean error for last 1 iterations (average pixel loss of sample): 106.3
+	This is the last pixel dist loss: 51.7
+	Training set mean error for last 1 iterations (average pixel loss of sample): 77.7
 	Training set stddev error for last 1 iterations (average pixel loss of sample): 0.0
-	This is the last pixel dist loss of sample: 106.3
+	This is the last pixel dist loss of sample: 77.7
 	-------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------
-Average joint loss (pixel): 97.25238095238095
+Mean joint loss (pixel): 36.804761904761904
 -------------------------------------------------------------------------------------------
 

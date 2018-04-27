@@ -137,9 +137,11 @@ def show_halnet_data_as_image(dataset, example_ix=0):
 
 def show_halnet_output_as_heatmap(heatmap, image=None, img_title=''):
     heatmap = io_data.convert_torch_targetheatmap_to_canonical(heatmap)
+    heatmap = heatmap.swapaxes(0, 1)
     plt.imshow(heatmap, cmap='viridis', interpolation='nearest')
     if not image is None:
         image = io_data.convert_torch_dataimage_to_canonical(image)
+        image = image.swapaxes(0, 1)
         plt.imshow(image)
         plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
     plt.title(img_title)
