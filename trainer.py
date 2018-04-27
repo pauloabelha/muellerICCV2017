@@ -309,6 +309,10 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     joint_loss_avg = 0
+    aa = np.mean(np.array(vars['pixel_losses']))
+    msg += print_verbose("\tTotal mean pixel loss: " + str(aa), verbose) + '\n'
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
     for joint_ix in model.joint_ixs:
         msg += print_verbose("\tJoint index: " + str(joint_ix), verbose) + "\n"
         mean_joint_pixel_loss = np.mean(
@@ -346,7 +350,7 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     joint_loss_avg /= len(model.joint_ixs)
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
-    msg += print_verbose("Mean joint loss (pixel): " + str(joint_loss_avg), verbose) + '\n'
+    msg += print_verbose("\tCurrent mean pixel loss: " + str(joint_loss_avg), verbose) + '\n'
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     if not control_vars['output_filepath'] == '':
