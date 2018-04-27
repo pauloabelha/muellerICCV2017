@@ -15,10 +15,6 @@ except ImportError:
 import matplotlib.image as mpimg
 from PIL import Image
 
-#ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/'
-ROOT_FOLDER = '/home/paulo/rds_muri/paulo/synthhands/'
-DATASET_ROOT_FOLDER = ROOT_FOLDER + 'SynthHands_Release/'
-HALNET_DATA_FILENAME = "HALNet_data.p"
 # resolution in rows x cols
 LABEL_RESOLUTION_HALNET = (320, 240)
 IMAGE_RES_ORIG = (480, 640)
@@ -78,10 +74,10 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
 
-def load_dataset_split(root_folder=ROOT_FOLDER):
+def load_dataset_split(root_folder):
     return pickle.load(open(root_folder + "dataset_split_files.p", "rb"))
 
-def save_dataset_split(dataset_root_folder=DATASET_ROOT_FOLDER, perc_train=0.7, perc_valid=0.15, perc_test=0.15):
+def save_dataset_split(dataset_root_folder, perc_train=0.7, perc_valid=0.15, perc_test=0.15):
 
     print("Recursively traversing all files in root folder: " + dataset_root_folder)
     orig_num_tabs = len(dataset_root_folder.split('/'))
@@ -187,9 +183,7 @@ def convert_color_space_label_to_heatmap(color_space_label, heatmap_res):
     heatmap[new_ix_res1, new_ix_res2] = 1 - (SMALL_PROB * heatmap.size)
     return heatmap
 
-def _get_data(filenamebase, root_folder=DATASET_ROOT_FOLDER,
-              depth_suffix='_depth.png',
-              color_on_depth_suffix='_color_on_depth.png'):
+def _get_data(root_folder, filenamebase, depth_suffix='_depth.png', color_on_depth_suffix='_color_on_depth.png'):
     # load color
     color_on_depth_image_filename = root_folder + filenamebase + color_on_depth_suffix
     color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=IMAGE_RES_HALNET)
@@ -204,7 +198,7 @@ def _get_data(filenamebase, root_folder=DATASET_ROOT_FOLDER,
     data = torch.from_numpy(RGBD_image).float()
     return data
 
-def _get_labels(filenamebase, joint_ixs, root_folder=DATASET_ROOT_FOLDER, label_suffix='_joint_pos.txt'):
+def _get_labels(root_folder, filenamebase, joint_ixs, label_suffix='_joint_pos.txt'):
     # get label
     label_filename = root_folder + filenamebase + label_suffix
     label_depth_space = _read_label(label_filename)
@@ -226,10 +220,10 @@ def _get_labels(filenamebase, joint_ixs, root_folder=DATASET_ROOT_FOLDER, label_
     labels = torch.from_numpy(labels).float()
     return (labels, labels_joints)
 
-def _get_data_labels(idx, filenamebases, joint_ixs):
+def _get_data_labels(root_folder, idx, filenamebases, joint_ixs):
     filenamebase = filenamebases[idx]
-    data = _get_data(filenamebase)
-    labels = _get_labels(filenamebase, joint_ixs)
+    data = _get_data(root_folder, filenamebase)
+    labels = _get_labels(root_folder, filenamebase, joint_ixs)
     return data, labels
 
 class SynthHandsDataset(Dataset):
@@ -238,16 +232,18 @@ class SynthHandsDataset(Dataset):
     filenamebases = []
     joint_ixs = []
     length = 0
+    dataset_folder = ''
 
-    def __init__(self, joint_ixs, type):
+    def __init__(self, root_folder, joint_ixs, type):
         self.type = type
         self.joint_ixs = joint_ixs
-        dataset_split_files = load_dataset_split()
+        dataset_split_files = load_dataset_split(root_folder=root_folder)
         self.filenamebases = dataset_split_files['filenamebases_' + self.type]
         self.length = len(self.filenamebases)
+        self.dataset_folder = root_folder
 
     def __getitem__(self, idx):
-        return _get_data_labels(idx, self.filenamebases, self.joint_ixs)
+        return _get_data_labels(self.dataset_folder, idx, self.filenamebases, self.joint_ixs)
 
     def get_raw_joints_of_example_ix(self, example_ix):
         return _read_label(self.filenamebases[example_ix])
@@ -273,15 +269,15 @@ class SynthHandsValidDataset(SynthHandsDataset):
 class SynthHandsTestDataset(SynthHandsDataset):
     type = 'test'
 
-def _get_SynthHands_loader(joint_ixs, verbose, type, batch_size=1):
+def _get_SynthHands_loader(root_folder, joint_ixs, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
     if type == 'train':
-        dataset = SynthHandsDataset(joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
     elif type == 'valid':
-        dataset = SynthHandsDataset(joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
     elif type == 'test':
-        dataset = SynthHandsDataset(joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
     dataset_loader = torch.utils.data.DataLoader(
@@ -297,14 +293,14 @@ def _get_SynthHands_loader(joint_ixs, verbose, type, batch_size=1):
         print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
     return dataset_loader
 
-def get_SynthHands_trainloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(joint_ixs, verbose, 'train', batch_size)
+def get_SynthHands_trainloader(root_folder, joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'train', batch_size)
 
-def get_SynthHands_validloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(joint_ixs, verbose, 'valid', batch_size)
+def get_SynthHands_validloader(root_folder, joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'valid', batch_size)
 
-def get_SynthHands_testloader(joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(joint_ixs, verbose, 'test', batch_size)
+def get_SynthHands_testloader(root_folder, joint_ixs, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'test', batch_size)
 
 
 def get_train_ixs(size, perc_train):

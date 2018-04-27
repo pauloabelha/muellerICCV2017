@@ -13,6 +13,121 @@ CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
 
 model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet)
 
+def print_header_info(control_vars):
+    msg = ''
+    msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
+    msg += print_verbose("Model info", control_vars['verbose']) + "\n"
+    msg += print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose']) + "\n"
+    msg += print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose']) + "\n"
+    msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
+    msg += print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose']) + "\n"
+    msg += print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose']) + "\n"
+    msg += print_verbose("Starting epoch: " + str(control_vars['start_epoch']), control_vars['verbose']) + "\n"
+    msg += print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("Starting overall iteration: " + str(control_vars['start_iter']),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
+    msg += print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("Number of iterations to train: " + str(control_vars['num_iter']),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("Approximate number of epochs to train: " +
+                         str(round(control_vars['num_iter'] / control_vars['n_iter_per_epoch'], 1)),
+                         control_vars['verbose']) + "\n"
+    msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
+
+    if not control_vars['output_filepath'] == '':
+        with open(control_vars['output_filepath'], 'w+') as f:
+            f.write(msg + '\n')
+
+def print_log_info(total_loss, control_vars):
+    verbose = control_vars['verbose']
+    print_verbose("", verbose)
+    print_verbose("-------------------------------------------------------------------------------------------",
+                  verbose)
+    print_verbose("Saving checkpoints:", verbose)
+    print_verbose("-------------------------------------------------------------------------------------------",
+                  verbose)
+    trainer.save_checkpoint(train_vars['best_model_dict'],
+                            filename=CHECKPOINT_FILENAMEBASE + 'best.pth.tar')
+    checkpoint_model_dict = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'control_vars': control_vars,
+        'train_vars': train_vars,
+    }
+    trainer.save_checkpoint(checkpoint_model_dict, filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
+    msg = ''
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose('Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' + \
+                         str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx'] + 1) + \
+                         '(' + str(control_vars['iter_size']) + ')' + '/' + \
+                         str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) + \
+                         '(' + str(control_vars['batch_size']) + ')' + \
+                         ' - log every ' + str(control_vars['log_interval']) + ' iter): ', verbose) + '\n'
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("Total loss: " + str(total_loss), verbose) + "\n"
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
+                         " iterations (average total loss): " + str(
+        np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose) + "\n"
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("Joint pixel losses:", verbose) + "\n"
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    joint_loss_avg = 0
+    for joint_ix in model.joint_ixs:
+        msg += print_verbose("\tJoint index: " + str(joint_ix), verbose) + "\n"
+        mean_joint_pixel_loss = np.mean(
+                                 np.array(train_vars['pixel_losses'])
+                                 [-control_vars['log_interval']:, joint_ix])
+        joint_loss_avg += mean_joint_pixel_loss
+        msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
+                             " iterations (average pixel loss): " +
+                             str(mean_joint_pixel_loss),
+                             verbose) + "\n"
+        msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
+                             " iterations (average pixel loss): " +
+                             str(np.std(
+                                 np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])),
+                             verbose) + "\n"
+        msg += print_verbose("\tThis is the last pixel dist loss: " + str(train_vars['pixel_losses'][-1][joint_ix]),
+                             verbose) + "\n"
+        msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
+                             " iterations (average pixel loss of sample): " +
+                             str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:,
+                                         joint_ix])), verbose) + "\n"
+        msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
+                             " iterations (average pixel loss of sample): " +
+                             str(np.std(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:,
+                                        joint_ix])), verbose) + "\n"
+        msg += print_verbose(
+            "\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]),
+            verbose) + "\n"
+        msg += print_verbose(
+            "\t-------------------------------------------------------------------------------------------",
+            verbose) + "\n"
+        msg += print_verbose(
+            "-------------------------------------------------------------------------------------------",
+            verbose) + "\n"
+    joint_loss_avg /= len(model.joint_ixs)
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("Average joint loss (pixel): " + str(joint_loss_avg), verbose) + '\n'
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    if not control_vars['output_filepath'] == '':
+        with open(control_vars['output_filepath'], 'a') as f:
+            f.write(msg + '\n')
+
+
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -102,57 +217,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 }
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
-                print_verbose("", verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                print_verbose("Saving checkpoints:", verbose)
-                print_verbose("-------------------------------------------------------------------------------------------", verbose)
-                trainer.save_checkpoint(train_vars['best_model_dict'],
-                                        filename=CHECKPOINT_FILENAMEBASE + 'best.pth.tar')
-                checkpoint_model_dict = {
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'control_vars': control_vars,
-                    'train_vars': train_vars,
-                }
-                trainer.save_checkpoint(checkpoint_model_dict, filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
-                msg = ''
-                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                msg += print_verbose('Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' + \
-                         str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx'] + 1) + \
-                         '(' + str(control_vars['iter_size']) + ')' + '/' + \
-                         str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) + \
-                         '(' + str(control_vars['batch_size']) + ')' + \
-                         ' - log every ' + str(control_vars['log_interval']) + ' iter): ', verbose) + '\n'
-                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                msg += print_verbose("Total loss: " + str(total_loss), verbose) + "\n"
-                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                msg += print_verbose("Training set mean error for last " + str(control_vars['log_interval']) +
-                      " iterations (average total loss): " + str(
-                    np.mean(train_vars['losses'][-control_vars['log_interval']:])), verbose) + "\n"
-                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                msg += print_verbose("Joint pixel losses:", verbose) + "\n"
-                msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                for joint_ix in model.joint_ixs:
-                    msg += print_verbose("\tJoint index: " + str(joint_ix), verbose) + "\n"
-                    msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
-                          " iterations (average pixel loss): " +
-                          str(np.mean(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose) + "\n"
-                    msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
-                          " iterations (average pixel loss): " +
-                          str(np.std(np.array(train_vars['pixel_losses'])[-control_vars['log_interval']:, joint_ix])), verbose) + "\n"
-                    msg += print_verbose("\tThis is the last pixel dist loss: " + str(train_vars['pixel_losses'][-1][joint_ix]), verbose) + "\n"
-                    msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
-                          " iterations (average pixel loss of sample): " +
-                          str(np.mean(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose) + "\n"
-                    msg += print_verbose("\tTraining set stddev error for last " + str(control_vars['log_interval']) +
-                          " iterations (average pixel loss of sample): " +
-                          str(np.std(np.array(train_vars['pixel_losses_sample'])[-control_vars['log_interval']:, joint_ix])), verbose) + "\n"
-                    msg += print_verbose("\tThis is the last pixel dist loss of sample: " + str(train_vars['pixel_losses_sample'][-1][joint_ix]), verbose) + "\n"
-                    msg += print_verbose("\t-------------------------------------------------------------------------------------------", verbose) + "\n"
-                    msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                if not control_vars['output_filepath'] == '':
-                    with open(control_vars['output_filepath'], 'w+') as f:
-                        f.write(msg + '\n')
+                print_log_info(total_loss, control_vars)
 
             if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
                 print_verbose("\nSaving model and checkpoint model for validation", verbose)
@@ -185,7 +250,8 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-train_loader = io_data.get_SynthHands_trainloader(joint_ixs=model.joint_ixs,
+train_loader = io_data.get_SynthHands_trainloader(root_folder=train_vars['root_folder'],
+                                                  joint_ixs=model.joint_ixs,
                                               batch_size=control_vars['max_mem_batch'],
                                               verbose=control_vars['verbose'])
 control_vars['num_batches'] = len(train_loader)
@@ -194,28 +260,7 @@ control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_si
 control_vars['tot_iter'] = int(len(train_loader) / control_vars['iter_size'])
 control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
 
-msg = ''
-msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
-msg += print_verbose("Model info", control_vars['verbose']) + "\n"
-msg += print_verbose("Number of joints: " + str(len(model.joint_ixs)), control_vars['verbose']) + "\n"
-msg += print_verbose("Joints indexes: " + str(model.joint_ixs), control_vars['verbose']) + "\n"
-msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
-msg += print_verbose("Max memory batch size: " + str(control_vars['max_mem_batch']), control_vars['verbose']) + "\n"
-msg += print_verbose("Length of dataset (in max mem batch size): " + str(len(train_loader)), control_vars['verbose']) + "\n"
-msg += print_verbose("Training batch size: " + str(control_vars['batch_size']), control_vars['verbose']) + "\n"
-msg += print_verbose("Starting epoch: " + str(control_vars['start_epoch']), control_vars['verbose']) + "\n"
-msg += print_verbose("Starting epoch iteration: " + str(control_vars['start_iter_mod']), control_vars['verbose']) + "\n"
-msg += print_verbose("Starting overall iteration: " + str(control_vars['start_iter']), control_vars['verbose']) + "\n"
-msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
-msg += print_verbose("Number of iterations per epoch: " + str(control_vars['n_iter_per_epoch']), control_vars['verbose']) + "\n"
-msg += print_verbose("Number of iterations to train: " + str(control_vars['num_iter']), control_vars['verbose']) + "\n"
-msg += print_verbose("Approximate number of epochs to train: " +
-              str(round(control_vars['num_iter']/control_vars['n_iter_per_epoch'], 1)), control_vars['verbose']) + "\n"
-msg += print_verbose("-----------------------------------------------------------", control_vars['verbose']) + "\n"
-
-if not control_vars['output_filepath'] == '':
-    with open(control_vars['output_filepath'], 'w+') as f:
-        f.write(msg + '\n')
+print_header_info(control_vars)
 
 model.train()
 control_vars['curr_iter'] = 1

@@ -3,7 +3,7 @@ import resnet
 import numpy as np
 import torch
 import argparse
-import sys
+import os
 import optimizers as my_optimizers
 import io_data
 
@@ -21,6 +21,7 @@ def initialize_train_vars(args):
     train_vars['joint_ixs'] = args.joint_ixs
     train_vars['use_cuda'] = args.use_cuda
     train_vars['cross_entropy'] = False
+    train_vars['root_folder'] = os.path.dirname(os.path.abspath(__file__)) + '/'
     return train_vars
 
 # initialize control variables
@@ -50,7 +51,7 @@ def initialize_vars(args):
 
 def parse_args(model_class):
     parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
-    parser.add_argument('--num_iter', dest='num_iter', type=int, required=False,
+    parser.add_argument('--num_iter', dest='num_iter', type=int, required=True,
                         help='Total number of iterations to train')
     parser.add_argument('-c', dest='checkpoint_filepath', default='',
                         help='Checkpoint file from which to begin training')
@@ -78,10 +79,13 @@ def parse_args(model_class):
                              'the required amount of iterations to complete a batch')
     parser.add_argument('--cross_entropy', dest='cross_entropy', action='store_true', default=False,
                         help='Whether to use cross entropy loss on HALNet')
+    parser.add_argument('-r', dest='root_folder', default='', required=True, help='Root folder for dataset')
     args = parser.parse_args()
     args.joint_ixs = list(map(int, args.joint_ixs))
 
     control_vars, train_vars = initialize_vars(args)
+    train_vars['root_folder'] = args.root_folder
+
     if control_vars['output_filepath'] == '':
         print_verbose("No output filepath specified", args.verbose)
     else:
