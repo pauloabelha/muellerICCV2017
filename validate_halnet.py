@@ -10,7 +10,7 @@ from HALNet import HALNet
 import trainer
 from debugger import show_target_and_output_to_image_info
 
-model, optimizer, control_vars, valid_vars = validator.parse_args(model_class=HALNet)
+model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse_args(model_class=HALNet)
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -104,6 +104,12 @@ control_vars['tot_iter'] = int(len(valid_loader) / control_vars['iter_size'])
 control_vars['start_iter_mod'] = control_vars['start_iter'] % control_vars['tot_iter']
 
 trainer.print_header_info(model, valid_loader, control_vars)
+
+msg = print_verbose("Number of iterations trained: " +
+                    str(train_control_vars['curr_iter']), control_vars['verbose']) + '\n'
+if not control_vars['output_filepath'] == '':
+    with open(control_vars['output_filepath'], 'a') as f:
+        f.write(msg + '\n')
 
 control_vars['curr_iter'] = 1
 control_vars['curr_epoch_iter'] = 1

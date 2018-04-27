@@ -71,7 +71,7 @@ def parse_args(model_class):
 
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
 
-    model, optimizer, valid_vars_loaded, _ = \
+    model, optimizer, train_vars, train_control_vars = \
         io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
                                 num_iter=100000, log_interval=10,
                                 log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
@@ -94,9 +94,9 @@ def parse_args(model_class):
     control_vars['num_epochs'] = 100
     control_vars['verbose'] = True
 
-    valid_vars['cross_entropy'] = valid_vars_loaded['cross_entropy']
+    valid_vars['cross_entropy'] = train_vars['cross_entropy']
     if valid_vars['cross_entropy']:
         print_verbose("Using cross entropy loss", args.verbose)
 
-    return model, optimizer, control_vars, valid_vars
+    return model, optimizer, control_vars, valid_vars, train_control_vars
 

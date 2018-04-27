@@ -18,9 +18,6 @@ def get_vars():
     control_vars['output_filepath'] = output_split_name[0] + '_' + str(RANDOM_ID) + '.' + output_split_name[1]
     return model, optimizer, control_vars, train_vars
 
-
-
-
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
     for batch_idx, (data, target) in enumerate(train_loader):
