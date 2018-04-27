@@ -4,3 +4,4 @@ __py_cache__/*
 *.pth.tar
 tsne.py
 .idea/workspace.py
+*.txt
