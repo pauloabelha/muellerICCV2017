@@ -117,7 +117,12 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 trainer.save_checkpoint(checkpoint_model_dict, filename=CHECKPOINT_FILENAMEBASE + '.pth.tar')
                 msg = ''
                 msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
-                msg += print_verbose("Iteration: " + str(control_vars['curr_iter']), verbose) + "\n"
+                msg += print_verbose('Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' + \
+                         str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx'] + 1) + \
+                         '(' + str(control_vars['iter_size']) + ')' + '/' + \
+                         str(control_vars['num_batches']) + ')' + ', (Iter #' + str(control_vars['curr_iter']) + \
+                         '(' + str(control_vars['batch_size']) + ')' + \
+                         ' - log every ' + str(control_vars['log_interval']) + ' iter): ', verbose) + '\n'
                 msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
                 msg += print_verbose("Total loss: " + str(total_loss), verbose) + "\n"
                 msg += print_verbose("-------------------------------------------------------------------------------------------", verbose) + "\n"
