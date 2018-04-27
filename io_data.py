@@ -154,6 +154,17 @@ def convert_torch_dataoutput_to_canonical(data):
     assert image.shape[1] == LABEL_RESOLUTION_HALNET[1]
     return image
 
+def convert_torch_dataimage_to_canonical(data, keep_depth=False):
+    image = data[0:3, :, :]
+    # put channels at the end
+    image = image.astype(np.uint8)
+    image = np.swapaxes(image, 0, 1)
+    image = np.swapaxes(image, 1, 2)
+    assert image.shape[0] == IMAGE_RES_HALNET[0]
+    assert image.shape[1] == IMAGE_RES_HALNET[1]
+    assert image.shape[2] == 3
+    return image
+
 def convert_torch_dataimage_to_canonical(data):
     image = data[0:3, :, :]
     # put channels at the end
@@ -189,7 +200,8 @@ def _get_data(root_folder, filenamebase, depth_suffix='_depth.png', color_on_dep
     color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=IMAGE_RES_HALNET)
     # load depth
     depth_image_filename = root_folder + filenamebase + depth_suffix
-    depth_image = _read_RGB_image(depth_image_filename, new_res=IMAGE_RES_HALNET)
+    depth_image = _read_RGB_image(depth_image_filename, new_res=IMAGE_RES_HALNET, depth=True)
+    depth_image = np.array(depth_image)
     depth_image = np.reshape(depth_image, (depth_image.shape[0], depth_image.shape[1], 1))
     # get data
     RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
@@ -333,61 +345,6 @@ def split_train_test_data(X, Y, perc_train):
     Y_test = Y[~train_ixs]
     return X_train, Y_train, X_test, Y_test, train_ixs
 
-def load_images_and_labels():
-    '''
-
-        :param dataset_filepath: path to the dataset base root,
-            where all label files are (e.g. ~/synthhands_release/')
-        :return: N X NUM_JOINTS X 3 numpy array,
-            where N is number of labels and NUM_JOINTS is number of joints
-        '''
-    files_namebase = []
-    labels = []
-    color_on_depth_images_dict = {}
-    depth_images_dict = {}
-    for root, dirs, files in os.walk(DATASET_PATH, topdown=True):
-        for filename in files:
-            curr_file_namebase = filename.split('_')[0]
-            file_ext = os.path.splitext(filename)[1][1:]
-            if filename[-18:-4] == 'color_on_depth':
-                color_on_depth_images_dict[curr_file_namebase] =\
-                    _read_RGB_image(os.path.join(root, filename),
-                                    new_res=IMAGE_RES_HALNET)
-            elif filename[-9:-4] == 'depth':
-                depth_images_dict[curr_file_namebase] = \
-                    _read_RGB_image(os.path.join(root, filename),
-                                    new_res=IMAGE_RES_HALNET)
-            if file_ext == 'txt':
-                label_depth_space = _read_label(os.path.join(root, filename))
-                label_color_space = np.zeros((label_depth_space.shape[0], 2))
-                for i in range(label_depth_space.shape[0]):
-                    label_color_space[i, 0], label_color_space[i, 1]\
-                        = camera.get_joint_in_color_space(label_depth_space[i])
-                labels.append(label_color_space)
-                files_namebase.append(curr_file_namebase)
-
-    RGBD_images = []
-    for filenamebase_key in color_on_depth_images_dict.keys():
-        color_on_depth_image = color_on_depth_images_dict[filenamebase_key]
-        depth_image = depth_images_dict[filenamebase_key]
-        depth_image = np.reshape(depth_image,
-                                 (depth_image.shape[0], depth_image.shape[1], 1))
-        RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
-        RGBD_images.append(RGBD_image)
-    RGBD_images_np_array = np.stack(RGBD_images, axis=0)
-    IMAGE_RES1, IMAGE_RES2 = IMAGE_RES_HALNET
-    assert RGBD_images_np_array.shape[1] == IMAGE_RES1
-    assert RGBD_images_np_array.shape[2] == IMAGE_RES2
-    assert RGBD_images_np_array.shape[3] == 4
-    label_np_array = np.stack(labels, axis=0)
-    assert label_np_array.shape[1] == NUM_JOINTS
-    assert label_np_array.shape[2] == 2
-    files_namebase_np_array = np.array(files_namebase)
-    return RGBD_images_np_array, label_np_array, files_namebase_np_array
-
-
-
-
 def _read_label(label_filepath):
     '''
 
@@ -399,8 +356,11 @@ def _read_label(label_filepath):
     first_line_nums = first_line.split(',')
     return np.reshape(first_line_nums, (NUM_JOINTS, 3)).astype(float)
 
-def _read_RGB_image_opencv(image_filepath):
-    image = cv2.imread(image_filepath)
+def _read_RGB_image_opencv(image_filepath, depth):
+    if depth:
+        image = cv2.imread(image_filepath, 0)
+    else:
+        image = cv2.imread(image_filepath)
     # COLOR_BGR2RGB requried when working with OpenCV
     if len(image.shape) > 2 and image.shape[2] == 3:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -427,18 +387,24 @@ def _get_downsample_image_func(module_name):
     elif module_name == 'opencv':
         return cv2.resize
 
-def _read_RGB_image(image_filepath, new_res=None, module_name='scipy'):
+def change_res_image(image, new_res, module_name='scipy'):
+    if module_name == 'opencv':
+        new_res = (new_res[1], new_res[0])
+    image = _get_downsample_image_func(module_name)(image, new_res)
+    return image
+def _read_RGB_image(image_filepath, new_res=None, depth=False, module_name='scipy'):
     '''
     Reads RGB image from filepath
     Can downsample image after reading (default is not downsampling)
     :param image_filepath: path to image file
     :return: opencv image object
     '''
-    image = _get_img_read_func_for_module(module_name)(image_filepath)
+    if module_name == 'opencv':
+        image = _read_RGB_image_opencv(image_filepath, depth)
+    else:
+        image = _get_img_read_func_for_module(module_name)(image_filepath)
     if new_res:
-        if module_name == 'opencv':
-            new_res = (new_res[1], new_res[0])
-        image = _get_downsample_image_func(module_name)(image, new_res)
+        image = change_res_image(image, new_res)
     return image
 
 def show_image(image):
