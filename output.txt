@@ -1,0 +1,17 @@
+-----------------------------------------------------------
+Model info
+Number of joints: 21
+Joints indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+-----------------------------------------------------------
+Max memory batch size: 4
+Length of dataset (in max mem batch size): 32486
+Training batch size: 16
+Starting epoch: 1
+Starting epoch iteration: 1
+Starting overall iteration: 1
+-----------------------------------------------------------
+Number of iterations per epoch: 8121
+Number of iterations to train: 3
+Approximate number of epochs to train: 0.0
+-----------------------------------------------------------
+
