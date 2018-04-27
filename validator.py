@@ -61,9 +61,12 @@ def parse_args(model_class):
                         help='Batch size for training (if larger than max memory batch, training will take '
                              'the required amount of iterations to complete a batch')
     parser.add_argument('-r', dest='root_folder', default='', required=True, help='Root folder for dataset')
+    parser.add_argument('--visual', dest='visual_debugging', action='store_true', default=False,
+                        help='Whether to visually inspect results')
     args = parser.parse_args()
 
     control_vars, valid_vars = initialize_vars(args)
+    control_vars['visual_debugging'] = args.visual_debugging
     valid_vars['root_folder'] = args.root_folder
 
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)

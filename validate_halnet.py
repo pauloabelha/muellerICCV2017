@@ -71,7 +71,8 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, 0, total_loss,
                                        valid_vars, control_vars, save_best=False)
-                show_target_and_output_to_image_info(data, target_heatmaps, output[3])
+                if control_vars['visual_debugging']:
+                    show_target_and_output_to_image_info(data, target_heatmaps, output[3])
 
             # print time lapse
             prefix = 'Validating (' + str(control_vars['curr_epoch_iter']) + '/' +\
