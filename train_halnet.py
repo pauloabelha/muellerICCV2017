@@ -8,10 +8,15 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
+from random import randint
 
-CHECKPOINT_FILENAMEBASE ='trained_halnet_log_'
+RANDOM_ID = randint(1000000000, 2000000000)
+
+CHECKPOINT_FILENAMEBASE = 'trained_halnet_log_' + str(RANDOM_ID) + '_'
 
 model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet)
+output_split_name = control_vars['output_filepath'].split('.')
+control_vars['output_filepath'] = output_split_name[0] + '_' + str(RANDOM_ID) + '.' + output_split_name[1]
 
 def print_header_info(control_vars):
     msg = ''
