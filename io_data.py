@@ -210,7 +210,7 @@ def _get_data(root_folder, filenamebase, depth_suffix='_depth.png', color_on_dep
     data = torch.from_numpy(RGBD_image).float()
     return data
 
-def _get_labels(root_folder, filenamebase, joint_ixs, label_suffix='_joint_pos.txt'):
+def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt'):
     # get label
     label_filename = root_folder + filenamebase + label_suffix
     label_depth_space = _read_label(label_filename)
@@ -218,11 +218,11 @@ def _get_labels(root_folder, filenamebase, joint_ixs, label_suffix='_joint_pos.t
     for i in range(label_depth_space.shape[0]):
         label_color_space[i, 0], label_color_space[i, 1] \
             = camera.get_joint_in_color_space(label_depth_space[i])
-    labels = np.zeros((len(joint_ixs), LABEL_RESOLUTION_HALNET[0], LABEL_RESOLUTION_HALNET[1]))
+    labels = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
     labels_ix = 0
     labels_joints = np.zeros((len(joint_ixs)*3, ))
     for joint_ix in joint_ixs:
-        label = convert_color_space_label_to_heatmap(label_color_space[joint_ix, :], LABEL_RESOLUTION_HALNET)
+        label = convert_color_space_label_to_heatmap(label_color_space[joint_ix, :], heatmap_res)
         label = label.astype(float)
         labels[labels_ix, :, :] = label
         # joint labels
@@ -232,10 +232,10 @@ def _get_labels(root_folder, filenamebase, joint_ixs, label_suffix='_joint_pos.t
     labels = torch.from_numpy(labels).float()
     return (labels, labels_joints)
 
-def _get_data_labels(root_folder, idx, filenamebases, joint_ixs):
+def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs):
     filenamebase = filenamebases[idx]
     data = _get_data(root_folder, filenamebase)
-    labels = _get_labels(root_folder, filenamebase, joint_ixs)
+    labels = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
     return data, labels
 
 class SynthHandsDataset(Dataset):
@@ -245,17 +245,20 @@ class SynthHandsDataset(Dataset):
     joint_ixs = []
     length = 0
     dataset_folder = ''
+    heatmap_res = None
 
-    def __init__(self, root_folder, joint_ixs, type):
+    def __init__(self, root_folder, joint_ixs, type, heatmap_res):
         self.type = type
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split(root_folder=root_folder)
         self.filenamebases = dataset_split_files['filenamebases_' + self.type]
         self.length = len(self.filenamebases)
         self.dataset_folder = root_folder
+        self.heatmap_res = heatmap_res
 
     def __getitem__(self, idx):
-        return _get_data_labels(self.dataset_folder, idx, self.filenamebases, self.joint_ixs)
+        return _get_data_labels(self.dataset_folder, idx, self.filenamebases,
+                                self.heatmap_res, self.joint_ixs)
 
     def get_raw_joints_of_example_ix(self, example_ix):
         return _read_label(self.filenamebases[example_ix])
@@ -281,15 +284,15 @@ class SynthHandsValidDataset(SynthHandsDataset):
 class SynthHandsTestDataset(SynthHandsDataset):
     type = 'test'
 
-def _get_SynthHands_loader(root_folder, joint_ixs, verbose, type, batch_size=1):
+def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
     if type == 'train':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
     elif type == 'valid':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
     elif type == 'test':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
     dataset_loader = torch.utils.data.DataLoader(
@@ -305,14 +308,14 @@ def _get_SynthHands_loader(root_folder, joint_ixs, verbose, type, batch_size=1):
         print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
     return dataset_loader
 
-def get_SynthHands_trainloader(root_folder, joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'train', batch_size)
+def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'train', batch_size)
 
-def get_SynthHands_validloader(root_folder, joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'valid', batch_size)
+def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'valid', batch_size)
 
-def get_SynthHands_testloader(root_folder, joint_ixs, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, verbose, 'test', batch_size)
+def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'test', batch_size)
 
 
 def get_train_ixs(size, perc_train):

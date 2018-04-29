@@ -1,5 +1,11 @@
 import time
 
+def cudafy(object, use_cuda):
+    if use_cuda:
+        return object.cuda()
+    else:
+        return object
+
 def display_est_time_loop(tot_toc, curr_ix, tot_iter, prefix=''):
     if curr_ix == tot_iter:
         neat_time = time.strftime('%H:%M:%S', time.gmtime(tot_toc))

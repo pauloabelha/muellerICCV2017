@@ -6,6 +6,7 @@ import argparse
 import os
 import optimizers as my_optimizers
 import io_data
+from random import randint
 
 def initialize_train_vars(args):
     train_vars = {}
@@ -356,3 +357,13 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     if not control_vars['output_filepath'] == '':
         with open(control_vars['output_filepath'], 'a') as f:
             f.write(msg + '\n')
+
+
+def get_vars(model_class):
+    RANDOM_ID = randint(1000000000, 2000000000)
+
+    model, optimizer, control_vars, train_vars = parse_args(model_class=model_class, random_id=RANDOM_ID)
+    if not control_vars['output_filepath'] == '':
+        output_split_name = control_vars['output_filepath'].split('.')
+        control_vars['output_filepath'] = output_split_name[0] + '_' + str(RANDOM_ID) + '.' + output_split_name[1]
+    return model, optimizer, control_vars, train_vars

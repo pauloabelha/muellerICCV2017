@@ -2,8 +2,8 @@ import numpy as np
 import probs
 import torch.nn.functional as F
 
-def euclidean_loss(output_joints, target_joints):
-    return (output_joints - target_joints).sum().abs()
+def euclidean_loss(output, target):
+    return (output - target).sum().abs()
 
 def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
@@ -28,21 +28,18 @@ def calculate_loss_HALNet(loss_func, output, target, joint_ixs,
     loss = loss / iter_size
     return loss
 
-
-
-def calculate_loss_JORNet(output, target_heatmaps, target_joints, iter_size):
-    loss_heatmap = 0
-    output_main = output[0]
-    # calculate main loss for "heatmaps"
-    for joint_output_ix in range(output_main.shape[1]):
-        loss_joint = cross_entropy_loss_p_logq(
-            output_main[:, joint_output_ix, :, :], target_heatmaps[:, joint_output_ix, :, :])
-        loss_heatmap += loss_joint
-    # calculate loss for joints
-    loss_joint_pos = euclidean_loss(output[1], target_joints)
-    loss_main = loss_heatmap + loss_joint_pos
-    loss_main /= iter_size
-    return loss_main, loss_joint_pos, loss_heatmap
+def calculate_loss_JORNet(loss_func, output, target, target_joints, joint_ixs,
+                                       weight_loss_intermed1, weight_loss_intermed2,
+                                       weight_loss_intermed3, weight_loss_main, iter_size):
+    heatmap_loss_weight = 1.0
+    joints_loss_weight = 2500
+    loss_halnet = calculate_loss_HALNet(loss_func, output, target, joint_ixs,
+                                       weight_loss_intermed1, weight_loss_intermed2,
+                                       weight_loss_intermed3, weight_loss_main, iter_size)
+    loss_joints = euclidean_loss(output[4], target_joints)
+    loss_joints /= iter_size
+    loss = (heatmap_loss_weight * loss_halnet) + (joints_loss_weight * loss_joints)
+    return loss
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0

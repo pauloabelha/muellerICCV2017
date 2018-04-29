@@ -1,22 +1,12 @@
 import torch
 from torch.autograd import Variable
 import io_data
-import numpy as np
 import trainer
 import time
 from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
-from random import randint
-
-def get_vars():
-    RANDOM_ID = randint(1000000000, 2000000000)
-
-    model, optimizer, control_vars, train_vars = trainer.parse_args(model_class=HALNet, random_id=RANDOM_ID)
-    output_split_name = control_vars['output_filepath'].split('.')
-    control_vars['output_filepath'] = output_split_name[0] + '_' + str(RANDOM_ID) + '.' + output_split_name[1]
-    return model, optimizer, control_vars, train_vars
 
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -56,7 +46,10 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         start = time.time()
         # get data and targetas cuda variables
         target_heatmaps, target_joints = target
-        data, target_heatmaps = Variable(data).cuda(), Variable(target_heatmaps).cuda()
+        data, target_heatmaps = Variable(data), Variable(target_heatmaps)
+        if train_vars['use_cuda']:
+            data = data.cuda()
+            target_heatmaps = target_heatmaps.cuda()
         # visualize if debugging
         # get model output
         output = model(data)
@@ -140,9 +133,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
 
     return train_vars, control_vars
 
-torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
-model, optimizer, control_vars, train_vars = get_vars()
+model, optimizer, control_vars, train_vars = trainer.get_vars(model_class=HALNet)
+if train_vars['use_cuda']:
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 train_loader = io_data.get_SynthHands_trainloader(root_folder=train_vars['root_folder'],
                                                   joint_ixs=model.joint_ixs,

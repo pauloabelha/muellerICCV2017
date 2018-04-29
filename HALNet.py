@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
+from magic import cudafy
 
 def _print_layer_output_shape(layer_name, output_shape):
     print("Layer " + layer_name + " output shape: " + str(output_shape))
@@ -115,11 +116,6 @@ class SoftmaxLogProbability2D(torch.nn.Module):
             seq_x.append(softmax_.log())
         x = torch.stack(seq_x, dim=1)
         return x
-def cudafy(object, use_cuda):
-    if use_cuda:
-        return object.cuda()
-    else:
-        return object
 
 def parse_model_param(params_dict, key, default_value):
     try:
@@ -237,5 +233,5 @@ class HALNet(nn.Module):
         # get subhalnet outputs (common to JORNet)
         out_intermed1, out_intermed2, out_intermed3, conv4fout = self.forward_subnet(x)
         # out to main loss of halnet
-        out_main = self.forward_main_loss(x)
+        out_main = self.forward_main_loss(conv4fout)
         return out_intermed1, out_intermed2, out_intermed3, out_main
