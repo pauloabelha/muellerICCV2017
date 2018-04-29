@@ -191,7 +191,7 @@ class HALNet(nn.Module):
         if self.cross_entropy:
             self.softmax_final = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
 
-    def forward(self, x):
+    def forward_subnet(self, x):
         out = self.conv1(x)
         out = self.mp1(out)
         out = self.res2a(out)
@@ -205,14 +205,8 @@ class HALNet(nn.Module):
         out = self.res4c(out)
         out = self.res4d(out)
         conv4eout = self.conv4e(out)
-        out = self.conv4f(conv4eout)
-        out = self.main_loss_conv(out)
-        out = self.main_loss_deconv(out)
-        out_main = out
-        # main loss
-        if self.cross_entropy:
-            out_main = self.softmax_final(out)
-        #intermediate losses
+        conv4fout = self.conv4f(conv4eout)
+        # intermediate losses
         # intermed 1
         out_intermed1 = self.interm_loss1(res3aout)
         out_intermed1 = self.interm_loss1_deconv(out_intermed1)
@@ -228,5 +222,20 @@ class HALNet(nn.Module):
         out_intermed3 = self.interm_loss3_deconv(out_intermed3)
         if self.cross_entropy:
             out_intermed3 = self.interm_loss3_softmax(out_intermed3)
-        # return net
+        return out_intermed1, out_intermed2, out_intermed3, conv4fout
+
+    def forward_main_loss(self, conv4fout):
+        out = self.main_loss_conv(conv4fout)
+        out = self.main_loss_deconv(out)
+        out_main = out
+        # main loss
+        if self.cross_entropy:
+            out_main = self.softmax_final(out)
+        return out_main
+
+    def forward(self, x):
+        # get subhalnet outputs (common to JORNet)
+        out_intermed1, out_intermed2, out_intermed3, conv4fout = self.forward_subnet(x)
+        # out to main loss of halnet
+        out_main = self.forward_main_loss(x)
         return out_intermed1, out_intermed2, out_intermed3, out_main
