@@ -14,6 +14,7 @@ except ImportError:
     pass
 import matplotlib.image as mpimg
 from PIL import Image
+from matplotlib import pyplot as plt
 
 # resolution in rows x cols
 LABEL_RESOLUTION_HALNET = (320, 240)
@@ -176,7 +177,7 @@ def convert_torch_dataimage_to_canonical(data):
     assert image.shape[2] == 3
     return image
 
-def convert_color_space_label_to_heatmap(color_space_label, heatmap_res):
+def convert_color_space_label_to_heatmap(color_space_label, heatmap_res, orig_img_res=IMAGE_RES_ORIG):
     '''
     Convert a (u,v) color-space label into a heatmap
     In this case, the heat map has only one value set to 1
@@ -188,26 +189,28 @@ def convert_color_space_label_to_heatmap(color_space_label, heatmap_res):
     SMALL_PROB = 0
     heatmap = np.zeros(heatmap_res) + SMALL_PROB
     new_ix_res1 = int(color_space_label[0] /
-                      (IMAGE_RES_ORIG[0] / heatmap_res[0]))
+                      (orig_img_res[0] / heatmap_res[0]))
     new_ix_res2 = int(color_space_label[1] /
-                      (IMAGE_RES_ORIG[1] / heatmap_res[1]))
+                      (orig_img_res[1] / heatmap_res[1]))
     heatmap[new_ix_res1, new_ix_res2] = 1 - (SMALL_PROB * heatmap.size)
     return heatmap
 
-def _get_data(root_folder, filenamebase, depth_suffix='_depth.png', color_on_depth_suffix='_color_on_depth.png'):
+def _get_data(root_folder, filenamebase, new_res, as_torch=True, depth_suffix='_depth.png', color_on_depth_suffix='_color_on_depth.png'):
     # load color
     color_on_depth_image_filename = root_folder + filenamebase + color_on_depth_suffix
-    color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=IMAGE_RES_HALNET)
+    color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=new_res)
     # load depth
     depth_image_filename = root_folder + filenamebase + depth_suffix
-    depth_image = _read_RGB_image(depth_image_filename, new_res=IMAGE_RES_HALNET, depth=True)
+    depth_image = _read_RGB_image(depth_image_filename, new_res=new_res, depth=True)
     depth_image = np.array(depth_image)
     depth_image = np.reshape(depth_image, (depth_image.shape[0], depth_image.shape[1], 1))
     # get data
     RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
     RGBD_image = RGBD_image.swapaxes(1, 2).swapaxes(0, 1)
     #data = RGBD_image.astype(np.float)
-    data = torch.from_numpy(RGBD_image).float()
+    data = RGBD_image
+    if as_torch:
+        data = torch.from_numpy(RGBD_image).float()
     return data
 
 def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt'):
@@ -230,12 +233,54 @@ def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix=
         labels_ix += 1
     labels_joints = torch.from_numpy(labels_joints).float()
     labels = torch.from_numpy(labels).float()
-    return (labels, labels_joints)
+    return (labels, labels_joints), label_color_space
 
-def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs):
+def imcrop2(joints_uv, image_rgbd, crop_res):
+    min_u = min(joints_uv[:, 0]) - 10
+    min_v = min(joints_uv[:, 1]) - 10
+    max_u = max(joints_uv[:, 0]) + 10
+    max_v = max(joints_uv[:, 1]) + 10
+    u0 = int(max(min_u, 0))
+    v0 = int(max(min_v, 0))
+    u1 = int(min(max_u, image_rgbd.shape[1]))
+    v1 = int(min(max_v, image_rgbd.shape[2]))
+    crop = image_rgbd[:, u0:u1, v0:v1]
+    crop = crop.swapaxes(0, 1)
+    crop = crop.swapaxes(1, 2)
+    crop = change_res_image(crop[:, :, 0:3], crop_res)
+    coords = [u0, v0, u1, v1]
+    return crop, coords
+
+def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, crop_hand=False):
+    idx = 2
     filenamebase = filenamebases[idx]
-    data = _get_data(root_folder, filenamebase)
-    labels = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
+    if crop_hand:
+        data = _get_data(root_folder, filenamebase, as_torch=False, new_res=None)
+        _, labels_colorspace = _get_labels(root_folder, filenamebase, (480, 640), joint_ixs)
+        data, crop_coords = imcrop2(labels_colorspace, data, crop_res=(128, 128))
+        res_transf_u = (heatmap_res[0] / (crop_coords[2] - crop_coords[0]))
+        res_transf_v = (heatmap_res[1] / (crop_coords[3] - crop_coords[1]))
+
+        labels_ix = 0
+        labels = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
+        for joint_ix in joint_ixs:
+            label_crop_local_u = labels_colorspace[joint_ix, 0] - crop_coords[0]
+            label_crop_local_v = labels_colorspace[joint_ix, 1] - crop_coords[1]
+            label_u = int(label_crop_local_u * res_transf_u)
+            label_v = int(label_crop_local_v * res_transf_v)
+            labels_colorspace[joint_ix, 0] = label_u
+            labels_colorspace[joint_ix, 1] = label_v
+            label = convert_color_space_label_to_heatmap(labels_colorspace[joint_ix, :], heatmap_res, orig_img_res=heatmap_res)
+            label = label.astype(float)
+            labels[labels_ix, :, :] = label
+            labels_ix += 1
+        print(labels_colorspace)
+        plt.imshow(data[:, :, 0:3].astype(int))
+        plt.show()
+        a=0
+    else:
+        data = _get_data(root_folder, filenamebase, heatmap_res)
+        labels, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
     return data, labels
 
 class SynthHandsDataset(Dataset):
@@ -246,8 +291,9 @@ class SynthHandsDataset(Dataset):
     length = 0
     dataset_folder = ''
     heatmap_res = None
+    crop_hand = False
 
-    def __init__(self, root_folder, joint_ixs, type, heatmap_res):
+    def __init__(self, root_folder, joint_ixs, type, heatmap_res, crop_hand):
         self.type = type
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split(root_folder=root_folder)
@@ -255,10 +301,11 @@ class SynthHandsDataset(Dataset):
         self.length = len(self.filenamebases)
         self.dataset_folder = root_folder
         self.heatmap_res = heatmap_res
+        self.crop_hand = crop_hand
 
     def __getitem__(self, idx):
         return _get_data_labels(self.dataset_folder, idx, self.filenamebases,
-                                self.heatmap_res, self.joint_ixs)
+                                self.heatmap_res, self.joint_ixs, crop_hand=self.crop_hand)
 
     def get_raw_joints_of_example_ix(self, example_ix):
         return _read_label(self.filenamebases[example_ix])
@@ -284,15 +331,15 @@ class SynthHandsValidDataset(SynthHandsDataset):
 class SynthHandsTestDataset(SynthHandsDataset):
     type = 'test'
 
-def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, type, batch_size=1):
+def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
     if type == 'train':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'valid':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'test':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res)
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
     dataset_loader = torch.utils.data.DataLoader(
@@ -308,14 +355,14 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, type, b
         print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
     return dataset_loader
 
-def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'train', batch_size)
+def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'train', batch_size)
 
-def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'valid', batch_size)
+def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'valid', batch_size)
 
-def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, verbose, 'test', batch_size)
+def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'test', batch_size)
 
 
 def get_train_ixs(size, perc_train):

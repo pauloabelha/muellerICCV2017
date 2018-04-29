@@ -139,6 +139,7 @@ if train_vars['use_cuda']:
 
 train_loader = io_data.get_SynthHands_trainloader(root_folder=train_vars['root_folder'],
                                                   joint_ixs=model.joint_ixs,
+                                                  heatmap_res=(320, 240),
                                               batch_size=control_vars['max_mem_batch'],
                                               verbose=control_vars['verbose'])
 control_vars['num_batches'] = len(train_loader)

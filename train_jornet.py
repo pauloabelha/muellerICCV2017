@@ -8,6 +8,8 @@ import losses as my_losses
 from debugger import print_verbose
 from JORNet import JORNet
 from halnet_crop import crop_batch_input_images
+from matplotlib import pyplot as plt
+import numpy as np
 
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -53,8 +55,6 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             data = data.cuda()
             target_heatmaps = target_heatmaps.cuda()
             target_joints = target_joints.cuda()
-        # crop image batch
-        data = crop_batch_input_images(data, target_heatmaps, crop_res=model.crop_res)
         # get model output
         output = model(data)
         # accumulate loss for sub-mini-batch
@@ -145,7 +145,8 @@ train_loader = io_data.get_SynthHands_trainloader(root_folder=train_vars['root_f
                                                   joint_ixs=model.joint_ixs,
                                                   heatmap_res=(128, 128),
                                               batch_size=control_vars['max_mem_batch'],
-                                              verbose=control_vars['verbose'])
+                                              verbose=control_vars['verbose'],
+                                                  crop_hand=True)
 control_vars['num_batches'] = len(train_loader)
 control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
 

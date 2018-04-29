@@ -88,10 +88,9 @@ def parse_args(model_class, random_id=-1):
     control_vars, train_vars = initialize_vars(args)
     train_vars['root_folder'] = args.root_folder
 
-    if random_id < 0:
-        train_vars['checkpoint_filenamebase'] = 'trained_halnet_log_'
-    else:
-        train_vars['checkpoint_filenamebase'] = 'trained_halnet_log_' + str(random_id) + '_'
+    train_vars['checkpoint_filenamebase'] = 'trained_' + str(model_class.__name__) + '_'
+    if random_id >= 0:
+        train_vars['checkpoint_filenamebase'] += str(random_id) + '_'
     if control_vars['output_filepath'] == '':
         print_verbose("No output filepath specified", args.verbose)
     else:
@@ -365,5 +364,6 @@ def get_vars(model_class):
     model, optimizer, control_vars, train_vars = parse_args(model_class=model_class, random_id=RANDOM_ID)
     if not control_vars['output_filepath'] == '':
         output_split_name = control_vars['output_filepath'].split('.')
-        control_vars['output_filepath'] = output_split_name[0] + '_' + str(RANDOM_ID) + '.' + output_split_name[1]
+        control_vars['output_filepath'] = output_split_name[0] + '_' + str(model_class) + '_' +\
+                                          str(RANDOM_ID) + '.' + output_split_name[1]
     return model, optimizer, control_vars, train_vars

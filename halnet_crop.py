@@ -41,10 +41,11 @@ def imcrop2(joints_uv, image_rgbd, crop_res):
     u1 = int(min(max_u, image_rgbd.shape[1]))
     v1 = int(min(max_v, image_rgbd.shape[2]))
     crop = image_rgbd[:, u0:u1, v0:v1]
-    crop[3, :, :] /= 1
     crop = crop.swapaxes(0, 1)
     crop = crop.swapaxes(1, 2)
-    crop = io_data.change_res_image(crop[:, :, 0:4], crop_res)
+    crop = io_data.change_res_image(crop[:, :, 0:3], crop_res)
+    plt.imshow(crop.astype(int))
+    plt.show()
     return crop
 
 
@@ -63,11 +64,19 @@ def get_joints_uv(target_heatmaps):
         joints_uv[joint_ix, 1] = max_heatmap[1]
     return joints_uv
 
+
+def plot_torch_image(torch_data):
+    aa = torch_data.data.numpy().swapaxes(0, 2)
+    plt.imshow(aa[:, :, 0:3].astype(int))
+    plt.show()
+
 def crop_batch_input_images(img_batch, target_heatmaps, crop_res):
     num_imgs = img_batch.data.shape[0]
     cropped_img_batch = np.zeros((img_batch.shape[0], img_batch.shape[1], crop_res[0], crop_res[0]))
     for i in range(num_imgs):
         joints_uv = get_joints_uv(target_heatmaps.data.numpy()[i, :, :, :])
+        print(joints_uv)
+        plot_torch_image(img_batch[i, :, :, :])
         cropped_img = imcrop2(joints_uv, img_batch.data.numpy()[i, :, :, :], crop_res)
         cropped_img = cropped_img.swapaxes(0, 2)
         cropped_img = cropped_img.swapaxes(1, 2)
