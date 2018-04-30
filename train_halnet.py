@@ -67,8 +67,11 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
-        train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-            train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
+        if train_vars['cross_entropy']:
+            train_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
+                train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
+        else:
+            train_vars['total_pixel_loss_sample'] = [-1] * len(model.joint_ixs)
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
