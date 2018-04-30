@@ -85,7 +85,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # append total loss
             train_vars['losses'].append(train_vars['total_loss'].data[0])
             # erase total loss
-            total_loss = train_vars['total_loss']
+            total_loss = train_vars['total_loss'].data[0]
             train_vars['total_loss'] = 0
             # append total joints loss
             train_vars['losses_joints'].append(train_vars['total_joints_loss'].data[0])
