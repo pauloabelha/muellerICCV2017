@@ -364,6 +364,6 @@ def get_vars(model_class):
     model, optimizer, control_vars, train_vars = parse_args(model_class=model_class, random_id=RANDOM_ID)
     if not control_vars['output_filepath'] == '':
         output_split_name = control_vars['output_filepath'].split('.')
-        control_vars['output_filepath'] = output_split_name[0] + '_' + str(model_class) + '_' +\
+        control_vars['output_filepath'] = output_split_name[0] + '_' + str(model_class.__name__) + '_' +\
                                           str(RANDOM_ID) + '.' + output_split_name[1]
     return model, optimizer, control_vars, train_vars
