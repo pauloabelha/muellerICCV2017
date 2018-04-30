@@ -18,6 +18,7 @@ import io_data
 import camera
 from torch.autograd import Variable
 import torch
+import pylab
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):
     x = Variable(torch.randn(model_input_shape), requires_grad=True)
@@ -69,7 +70,7 @@ def _add_squares_for_joints(image, joints):
     joints_color_space = np.zeros((joints.shape[0], 2))
     for joint_ix in range(joints.shape[0]):
         joint = joints[joint_ix, :]
-        u, v = camera.get_joint_in_color_space(joint)
+        u, v = camera.joint_depth2color(joint)
         image = _add_small_square(image, u, v)
         joints_color_space[joint_ix, 0] = u
         joints_color_space[joint_ix, 1] = v
@@ -146,3 +147,31 @@ def show_halnet_output_as_heatmap(heatmap, image=None, img_title=''):
         plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
     plt.title(img_title)
     plt.show()
+
+def plot_img_RGB(img_RGB, fig=None, title=''):
+    if fig is None:
+        fig = plt.figure()
+    plt.imshow(img_RGB)
+    plt.title(title)
+    return fig
+
+def plot_joints(joints_colorspace, num_joints=21, fig=None, linewidth=4):
+    if fig is None:
+        fig = plt.figure()
+    plt.plot(joints_colorspace[0, 1], joints_colorspace[0, 0], 'ro', color='C0')
+    plt.plot(joints_colorspace[0:2, 1], joints_colorspace[0:2, 0], 'ro-', color='C0', linewidth=linewidth)
+    for i in range(4):
+        plt.plot([joints_colorspace[0, 1], joints_colorspace[(i * 4) + 5, 1]],
+                 [joints_colorspace[0, 0], joints_colorspace[(i * 4) + 5, 0]], 'ro-', color='C0', linewidth=linewidth)
+    for i in range(num_joints - 1):
+        if (i + 1) % 4 == 0:
+            continue
+        color = 'C' + str(int(np.ceil((i + 1) / 4)))
+        plt.plot(joints_colorspace[i + 1:i + 3, 1], joints_colorspace[i + 1:i + 3, 0], 'ro-', color=color, linewidth=linewidth)
+    return fig
+
+def show():
+    plt.show()
+
+def savefig(filepath):
+    pylab.savefig(filepath)

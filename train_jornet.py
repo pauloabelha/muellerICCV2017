@@ -67,7 +67,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
             model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
         loss.backward()
-        train_vars['total_loss'] += loss
+        train_vars['total_loss'] += loss.item()
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
@@ -81,9 +81,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # clear optimiser
             optimizer.zero_grad()
             # append total loss
-            train_vars['losses'].append(train_vars['total_loss'].data[0])
+            train_vars['losses'].append(train_vars['total_loss'])
             # erase total loss
-            total_loss = train_vars['total_loss'].data[0]
+            total_loss = train_vars['total_loss']
             train_vars['total_loss'] = 0
             # append dist loss
             train_vars['pixel_losses'].append(train_vars['total_pixel_loss'])
