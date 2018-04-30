@@ -274,6 +274,7 @@ def print_header_info(model, dataset_loader, control_vars):
             f.write(msg + '\n')
 
 def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save_best=True):
+    model_class_name = type(model).__name__
     verbose = control_vars['verbose']
     print_verbose("", verbose)
     print_verbose("-------------------------------------------------------------------------------------------",
@@ -308,22 +309,23 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     msg += print_verbose("Mean loss for last " + str(control_vars['log_interval']) +
                          " iterations (average total loss): " + str(
         np.mean(vars['losses'][-control_vars['log_interval']:])), verbose) + "\n"
-    msg += print_verbose("-------------------------------------------------------------------------------------------",
-                         verbose) + "\n"
-    msg += print_verbose("Current joints loss: " + str(vars['losses_joints'][-1]), verbose) + "\n"
-    msg += print_verbose("Best joints loss: " + str(vars['best_loss_joints']), verbose) + "\n"
-    msg += print_verbose("Mean total joints loss: " + str(np.mean(vars['losses_joints'])), verbose) + "\n"
-    msg += print_verbose("Mean joints loss for last " + str(control_vars['log_interval']) +
-                         " iterations (average total joints loss): " + str(
-        np.mean(vars['losses_joints'][-control_vars['log_interval']:])), verbose) + "\n"
-    msg += print_verbose("-------------------------------------------------------------------------------------------",
-                         verbose) + "\n"
-    msg += print_verbose("Current heatmaps loss: " + str(vars['losses_heatmaps'][-1]), verbose) + "\n"
-    msg += print_verbose("Best heatmaps loss: " + str(vars['best_loss_heatmaps']), verbose) + "\n"
-    msg += print_verbose("Mean total heatmaps loss: " + str(np.mean(vars['losses_heatmaps'])), verbose) + "\n"
-    msg += print_verbose("Mean heatmaps loss for last " + str(control_vars['log_interval']) +
-                         " iterations (average total heatmaps loss): " + str(
-        np.mean(vars['losses_heatmaps'][-control_vars['log_interval']:])), verbose) + "\n"
+    if model_class_name == 'JORNet':
+        msg += print_verbose("-------------------------------------------------------------------------------------------",
+                             verbose) + "\n"
+        msg += print_verbose("Current joints loss: " + str(vars['losses_joints'][-1]), verbose) + "\n"
+        msg += print_verbose("Best joints loss: " + str(vars['best_loss_joints']), verbose) + "\n"
+        msg += print_verbose("Mean total joints loss: " + str(np.mean(vars['losses_joints'])), verbose) + "\n"
+        msg += print_verbose("Mean joints loss for last " + str(control_vars['log_interval']) +
+                             " iterations (average total joints loss): " + str(
+            np.mean(vars['losses_joints'][-control_vars['log_interval']:])), verbose) + "\n"
+        msg += print_verbose("-------------------------------------------------------------------------------------------",
+                             verbose) + "\n"
+        msg += print_verbose("Current heatmaps loss: " + str(vars['losses_heatmaps'][-1]), verbose) + "\n"
+        msg += print_verbose("Best heatmaps loss: " + str(vars['best_loss_heatmaps']), verbose) + "\n"
+        msg += print_verbose("Mean total heatmaps loss: " + str(np.mean(vars['losses_heatmaps'])), verbose) + "\n"
+        msg += print_verbose("Mean heatmaps loss for last " + str(control_vars['log_interval']) +
+                             " iterations (average total heatmaps loss): " + str(
+            np.mean(vars['losses_heatmaps'][-control_vars['log_interval']:])), verbose) + "\n"
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     msg += print_verbose("Joint pixel losses:", verbose) + "\n"
