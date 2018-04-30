@@ -156,7 +156,7 @@ class HALNet(nn.Module):
                                                padding_right3=1, first_in_channels=256), self.use_cuda)
         self.interm_loss1 = cudafy(HALNetConvBlock(kernel_size=3, stride=1, filters=self.num_joints,
                                                    in_channels=512, padding=1), self.use_cuda)
-        self.interm_loss1_deconv = cudafy(nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True), self.use_cuda)
+        self.interm_loss1_deconv = cudafy(nn.Upsample(scale_factor=4, mode='bilinear'), self.use_cuda)
         self.interm_loss1_softmax = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
         self.res3b = cudafy(HALNetResBlockIDSkip(filters1=128, filters2=512), self.use_cuda)
         self.res3c = cudafy(HALNetResBlockIDSkip(filters1=128, filters2=512), self.use_cuda)
@@ -166,7 +166,7 @@ class HALNet(nn.Module):
         self.interm_loss2 = cudafy(HALNetConvBlock(kernel_size=3, stride=1,
                                             filters=self.num_joints, in_channels=1024,
                                             padding=1), self.use_cuda)
-        self.interm_loss2_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True), self.use_cuda)
+        self.interm_loss2_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear'), self.use_cuda)
         self.interm_loss2_softmax = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
         self.res4b = cudafy(HALNetResBlockIDSkip(filters1=256, filters2=1024), self.use_cuda)
         self.res4c = cudafy(HALNetResBlockIDSkip(filters1=256, filters2=1024), self.use_cuda)
@@ -176,14 +176,14 @@ class HALNet(nn.Module):
         self.interm_loss3 = cudafy(HALNetConvBlock(kernel_size=3, stride=1,
                                             filters=self.num_joints, in_channels=512,
                                             padding=1), self.use_cuda)
-        self.interm_loss3_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True), self.use_cuda)
+        self.interm_loss3_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear'), self.use_cuda)
         self.interm_loss3_softmax = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
         self.conv4f = cudafy(HALNetConvBlock(kernel_size=3, stride=1, filters=256,
                                       in_channels=512, padding=1), self.use_cuda)
         self.main_loss_conv = cudafy(HALNetConvBlock(kernel_size=3, stride=1,
                                               filters=self.num_joints, in_channels=256,
                                               padding=1), self.use_cuda)
-        self.main_loss_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True), self.use_cuda)
+        self.main_loss_deconv = cudafy(nn.Upsample(scale_factor=8, mode='bilinear'), self.use_cuda)
         if self.cross_entropy:
             self.softmax_final = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
 

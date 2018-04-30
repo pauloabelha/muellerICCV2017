@@ -14,8 +14,8 @@ class JORNet(HALNet_class):
         self.main_loss_conv = cudafy(HALNet.HALNetConvBlock(
                 kernel_size=3, stride=1, filters=21, in_channels=256, padding=1),
             self.use_cuda)
-        self.main_loss_deconv1 = cudafy(nn.Upsample(size=self.crop_res, mode='bilinear', align_corners=True), self.use_cuda)
-        #self.main_loss_deconv2 = cudafy(nn.Upsample(scale_factor=1, mode='bilinear', align_corners=True),
+        self.main_loss_deconv1 = cudafy(nn.Upsample(size=self.crop_res, mode='bilinear'), self.use_cuda)
+        #self.main_loss_deconv2 = cudafy(nn.Upsample(scale_factor=1, mode='bilinear'),
         #                                self.use_cuda)
         if self.cross_entropy:
             self.softmax_final = cudafy(HALNet.
