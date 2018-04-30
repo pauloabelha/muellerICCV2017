@@ -251,18 +251,32 @@ def imcrop2(joints_uv, image_rgbd, crop_res):
     coords = [u0, v0, u1, v1]
     return crop, coords
 
+def plot_joints(joints_colorspace, num_joints=21, linewidth=4):
+    plt.plot(joints_colorspace[0, 1], joints_colorspace[0, 0], 'ro', color='C0')
+    plt.plot(joints_colorspace[0:2, 1], joints_colorspace[0:2, 0], 'ro-', color='C0', linewidth=linewidth)
+    for i in range(4):
+        plt.plot([joints_colorspace[0, 1], joints_colorspace[(i * 4) + 5, 1]],
+                 [joints_colorspace[0, 0], joints_colorspace[(i * 4) + 5, 0]], 'ro-', color='C0', linewidth=linewidth)
+    for i in range(num_joints - 1):
+        if (i + 1) % 4 == 0:
+            continue
+        color = 'C' + str(int(np.ceil((i + 1) / 4)))
+        plt.plot(joints_colorspace[i + 1:i + 3, 1], joints_colorspace[i + 1:i + 3, 0], 'ro-', color=color, linewidth=linewidth)
+    return plt
+
 def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, crop_hand=False):
-    idx = 2
+    idx += 10
     filenamebase = filenamebases[idx]
     if crop_hand:
         data = _get_data(root_folder, filenamebase, as_torch=False, new_res=None)
-        _, labels_colorspace = _get_labels(root_folder, filenamebase, (480, 640), joint_ixs)
+        labels_, labels_colorspace = _get_labels(root_folder, filenamebase, (480, 640), joint_ixs)
+        _, labels_joints = labels_
         data, crop_coords = imcrop2(labels_colorspace, data, crop_res=(128, 128))
         res_transf_u = (heatmap_res[0] / (crop_coords[2] - crop_coords[0]))
         res_transf_v = (heatmap_res[1] / (crop_coords[3] - crop_coords[1]))
 
         labels_ix = 0
-        labels = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
+        labels_heatmaps = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
         for joint_ix in joint_ixs:
             label_crop_local_u = labels_colorspace[joint_ix, 0] - crop_coords[0]
             label_crop_local_v = labels_colorspace[joint_ix, 1] - crop_coords[1]
@@ -272,11 +286,17 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, cr
             labels_colorspace[joint_ix, 1] = label_v
             label = convert_color_space_label_to_heatmap(labels_colorspace[joint_ix, :], heatmap_res, orig_img_res=heatmap_res)
             label = label.astype(float)
-            labels[labels_ix, :, :] = label
+            labels_heatmaps[labels_ix, :, :] = label
             labels_ix += 1
+        print('----------------------------------------')
+        print(filenamebase)
         print(labels_colorspace)
+        print('----------------------------------------')
         plt.imshow(data[:, :, 0:3].astype(int))
+        plot_joints(joints_colorspace=labels_colorspace, num_joints=len(joint_ixs))
+        plt.title(filenamebase)
         plt.show()
+        labels = (labels_heatmaps, labels_joints)
         a=0
     else:
         data = _get_data(root_folder, filenamebase, heatmap_res)
