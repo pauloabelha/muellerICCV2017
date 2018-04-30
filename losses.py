@@ -39,7 +39,7 @@ def calculate_loss_JORNet(loss_func, output, target, target_joints, joint_ixs,
     loss_joints = euclidean_loss(output[4], target_joints)
     loss_joints /= iter_size
     loss = (heatmap_loss_weight * loss_halnet) + (joints_loss_weight * loss_joints)
-    return loss
+    return loss, loss_halnet, loss_joints
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0

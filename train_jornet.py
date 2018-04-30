@@ -62,12 +62,14 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             loss_func = my_losses.cross_entropy_loss_p_logq
         else:
             loss_func = my_losses.euclidean_loss
-        loss = my_losses.calculate_loss_JORNet(loss_func,
+        loss, loss_heatmaps, loss_joints = my_losses.calculate_loss_JORNet(loss_func,
             output, target_heatmaps, target_joints, model.joint_ixs, model.WEIGHT_LOSS_INTERMED1,
             model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
             model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
         loss.backward()
         train_vars['total_loss'] += loss
+        train_vars['total_joints_loss'] += loss_joints
+        train_vars['total_heatmaps_loss'] += loss_heatmaps
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
@@ -83,8 +85,16 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # append total loss
             train_vars['losses'].append(train_vars['total_loss'].data[0])
             # erase total loss
-            total_loss = train_vars['total_loss'].data[0]
+            total_loss = train_vars['total_loss']
             train_vars['total_loss'] = 0
+            # append total joints loss
+            train_vars['losses_joints'].append(train_vars['total_joints_loss'].data[0])
+            # erase total joints loss
+            train_vars['total_joints_loss'] = 0
+            # append total joints loss
+            train_vars['losses_heatmaps'].append(train_vars['total_heatmaps_loss'].data[0])
+            # erase total joints loss
+            train_vars['total_heatmaps_loss'] = 0
             # append dist loss
             train_vars['pixel_losses'].append(train_vars['total_pixel_loss'])
             # erase pixel dist loss
@@ -103,6 +113,10 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                     'control_vars': control_vars,
                     'train_vars': train_vars,
                 }
+            if train_vars['losses_joints'][-1] < train_vars['best_loss_joints']:
+                train_vars['best_loss_joints'] = train_vars['losses_joints'][-1]
+            if train_vars['losses_heatmaps'][-1] < train_vars['best_loss_heatmaps']:
+                train_vars['best_loss_heatmaps'] = train_vars['losses_heatmaps'][-1]
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, epoch, total_loss, train_vars, control_vars)
