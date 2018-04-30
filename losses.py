@@ -3,7 +3,8 @@ import probs
 import torch.nn.functional as F
 
 def euclidean_loss(output, target):
-    return (output - target).sum().abs()
+    batch_size = output.data.shape[0]
+    return (output - target).sum().abs() / batch_size
 
 def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
