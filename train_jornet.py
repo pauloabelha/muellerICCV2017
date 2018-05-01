@@ -11,6 +11,15 @@ from halnet_crop import crop_batch_input_images
 from matplotlib import pyplot as plt
 import numpy as np
 
+
+def get_loss_weights(curr_iter):
+    weights_heatmaps_loss = [0.5, 0.5, 0.5, 1.0]
+    weights_joints_loss = [1250, 1250, 1250, 2500]
+    if curr_iter > 45000:
+        weights_heatmaps_loss = [0.1, 0.1, 0.1, 1.0]
+        weights_joints_loss = [250, 250, 250, 2500]
+    return weights_heatmaps_loss, weights_joints_loss
+
 def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -62,10 +71,10 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             loss_func = my_losses.cross_entropy_loss_p_logq
         else:
             loss_func = my_losses.euclidean_loss
-        loss, loss_heatmaps, loss_joints = my_losses.calculate_loss_JORNet(loss_func,
-            output, target_heatmaps, target_joints, model.joint_ixs, model.WEIGHT_LOSS_INTERMED1,
-            model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
-            model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
+        weights_heatmaps_loss, weights_joints_loss = get_loss_weights(control_vars['curr_iter'])
+        loss, loss_heatmaps, loss_joints = my_losses.calculate_loss_JORNet(
+            loss_func, output, target_heatmaps, target_joints, train_vars['joint_ixs'],
+            weights_heatmaps_loss, weights_joints_loss, control_vars['iter_size'])
         loss.backward()
         train_vars['total_loss'] += loss
         train_vars['total_joints_loss'] += loss_joints

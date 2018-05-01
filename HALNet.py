@@ -187,7 +187,7 @@ class HALNet(nn.Module):
         if self.cross_entropy:
             self.softmax_final = cudafy(SoftmaxLogProbability2D(), self.use_cuda)
 
-    def forward_subnet(self, x):
+    def forward_common_net(self, x):
         out = self.conv1(x)
         out = self.mp1(out)
         out = self.res2a(out)
@@ -202,6 +202,10 @@ class HALNet(nn.Module):
         out = self.res4d(out)
         conv4eout = self.conv4e(out)
         conv4fout = self.conv4f(conv4eout)
+        return res3aout, res4aout, conv4eout, conv4fout
+
+    def forward_subnet(self, x):
+        res3aout, res4aout, conv4eout, conv4fout = self.forward_common_net(x)
         # intermediate losses
         # intermed 1
         out_intermed1 = self.interm_loss1(res3aout)

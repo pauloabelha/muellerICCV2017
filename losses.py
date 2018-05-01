@@ -29,18 +29,31 @@ def calculate_loss_HALNet(loss_func, output, target, joint_ixs,
     loss = loss / iter_size
     return loss
 
-def calculate_loss_JORNet(loss_func, output, target, target_joints, joint_ixs,
-                                       weight_loss_intermed1, weight_loss_intermed2,
-                                       weight_loss_intermed3, weight_loss_main, iter_size):
-    heatmap_loss_weight = 1.0
-    joints_loss_weight = 2500
-    loss_halnet = calculate_loss_HALNet(loss_func, output, target, joint_ixs,
-                                       weight_loss_intermed1, weight_loss_intermed2,
-                                       weight_loss_intermed3, weight_loss_main, iter_size)
-    loss_joints = euclidean_loss(output[4], target_joints)
-    loss_joints /= iter_size
-    loss = (heatmap_loss_weight * loss_halnet) + (joints_loss_weight * loss_joints)
-    return loss, loss_halnet, loss_joints
+def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, target_joints,
+                             joint_ixs, weight_heatmaps_loss, weight_joints_loss, iter_size):
+    loss_heatmaps = 0
+    for joint_ix in joint_ixs:
+        loss_heatmaps += loss_func(output_hm[:, joint_ix, :, :], target_heatmaps[:, joint_ix, :, :])
+    loss_joints = euclidean_loss(output_j, target_joints)
+    loss = (weight_heatmaps_loss * loss_heatmaps) + (weight_joints_loss * loss_joints)
+    loss = loss / iter_size
+    return loss, loss_heatmaps, loss_joints
+
+def calculate_loss_JORNet(loss_func, output, target_heatmaps, target_joints, joint_ixs,
+                          weights_heatmaps_loss, weights_joints_loss, iter_size):
+    loss = 0
+    loss_heatmaps = 0
+    loss_joints = 0
+    for loss_ix in range(3):
+        loss_sub, loss_heatmaps_sub, loss_joints_sub =\
+            calculate_subloss_JORNet(loss_func, output[loss_ix], output[loss_ix+4],
+                                     target_heatmaps, target_joints, joint_ixs,
+                                     weights_heatmaps_loss[loss_ix], weights_joints_loss[loss_ix],
+                                     iter_size)
+        loss += loss_sub
+        loss_heatmaps += loss_heatmaps_sub
+        loss_joints += loss_joints_sub
+    return loss, loss_heatmaps, loss_joints
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0
