@@ -19,6 +19,10 @@ import camera
 from torch.autograd import Variable
 import torch
 import pylab
+import converter as conv
+import matplotlib.patches as mpatches
+import math
+import converter as conv
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):
     x = Variable(torch.randn(model_input_shape), requires_grad=True)
@@ -155,11 +159,17 @@ def plot_img_RGB(img_RGB, fig=None, title=''):
     plt.title(title)
     return fig
 
-def plot_joints(joints_colorspace, num_joints=21, fig=None, linewidth=4):
+def plot_joints(joints_colorspace, fig=None, show_legend=True, linewidth=4):
     if fig is None:
         fig = plt.figure()
+    num_joints = joints_colorspace.shape[0]
     plt.plot(joints_colorspace[0, 1], joints_colorspace[0, 0], 'ro', color='C0')
     plt.plot(joints_colorspace[0:2, 1], joints_colorspace[0:2, 0], 'ro-', color='C0', linewidth=linewidth)
+    joints_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
+    legends = []
+    if show_legend:
+        palm_leg = mpatches.Patch(color='C0', label='Palm')
+        legends.append(palm_leg)
     for i in range(4):
         plt.plot([joints_colorspace[0, 1], joints_colorspace[(i * 4) + 5, 1]],
                  [joints_colorspace[0, 0], joints_colorspace[(i * 4) + 5, 0]], 'ro-', color='C0', linewidth=linewidth)
@@ -168,10 +178,51 @@ def plot_joints(joints_colorspace, num_joints=21, fig=None, linewidth=4):
             continue
         color = 'C' + str(int(np.ceil((i + 1) / 4)))
         plt.plot(joints_colorspace[i + 1:i + 3, 1], joints_colorspace[i + 1:i + 3, 0], 'ro-', color=color, linewidth=linewidth)
+        if show_legend and i % 4 == 0:
+            joint_name = joints_names[math.floor((i+1)/4)]
+            legends.append(mpatches.Patch(color=color, label=joint_name))
+    if show_legend:
+        #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., handles=legends)
+        plt.legend(handles=legends)
     return fig
+
+def plot_joints_from_heatmaps(heatmaps, data=None, title='', fig=None, linewidth=2):
+    if fig is None:
+        fig = plt.figure()
+    joints_colorspace = conv.heatmaps_to_joints_colorspace(heatmaps)
+    fig = plot_joints(joints_colorspace, fig=fig, linewidth=linewidth)
+    if not data is None:
+        data_img_RGB = conv.numpy_to_plottable_rgb(data)
+        fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
+    return fig
+
+def plot_joints_from_colorspace(joints_colorspace, data=None, title='', fig=None, linewidth=2):
+    if fig is None:
+        fig = plt.figure()
+    fig = plot_joints(joints_colorspace, fig=fig, linewidth=linewidth)
+    if not data is None:
+        data_img_RGB = conv.numpy_to_plottable_rgb(data)
+        fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
+    return fig
+
+def plot_image(data, title='', fig=None):
+    if fig is None:
+        fig = plt.figure()
+    data_img_RGB = conv.numpy_to_plottable_rgb(data)
+    plt.imshow(data_img_RGB)
+    if not title == '':
+        plt.title(title)
+    return fig
+
+def plot_image_and_heatmap(heatmap, data, title='', fig=None):
+    plot_image(data, title='')
+    plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
 
 def show():
     plt.show()
 
 def savefig(filepath):
     pylab.savefig(filepath)
+
+def create_fig():
+    return plt.figure()

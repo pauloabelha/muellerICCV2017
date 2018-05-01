@@ -8,6 +8,8 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
+import visualize
+import converter as conv
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -36,6 +38,28 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             output, target_heatmaps, model.joint_ixs, model.WEIGHT_LOSS_INTERMED1,
             model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
             model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
+
+        '''
+        for i in range(control_vars['max_mem_batch']):
+            filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
+            filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
+            fig = visualize.create_fig()
+            #visualize.plot_joints_from_heatmaps(output[3][i].data.numpy(), fig=fig,
+            #                                    title=filenamebase, data=data[i].data.numpy())
+            visualize.plot_image_and_heatmap(output[3][i][8].data.numpy(),
+                                             data=data[i].data.numpy(),
+                                             title=filenamebase, fig=fig)
+            visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_heatmap')
+
+            #labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
+            #data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
+            #    io_data.crop_image_get_labels(data[i].data.numpy(), labels_colorspace, range(21))
+            #data_crop_img = conv.numpy_to_plottable_rgb(data_crop)
+            #visualize.plot_image(data_crop_img, title=filenamebase, fig=fig)
+            #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
+            #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
+            #visualize.show()
+        '''
         #loss.backward()
         valid_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch

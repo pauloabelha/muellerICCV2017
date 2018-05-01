@@ -301,22 +301,30 @@ def get_labels_cropped_heatmaps(labels_colorspace, joint_ixs, crop_coords, heatm
     res_transf_v = (heatmap_res[1] / (crop_coords[3] - crop_coords[1]))
     labels_ix = 0
     labels_heatmaps = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
+    labels_colorspace_mapped = np.copy(labels_colorspace)
     for joint_ix in joint_ixs:
         label_crop_local_u = labels_colorspace[joint_ix, 0] - crop_coords[0]
         label_crop_local_v = labels_colorspace[joint_ix, 1] - crop_coords[1]
         label_u = int(label_crop_local_u * res_transf_u)
         label_v = int(label_crop_local_v * res_transf_v)
-        labels_colorspace[joint_ix, 0] = label_u
-        labels_colorspace[joint_ix, 1] = label_v
-        label = convert_color_space_label_to_heatmap(labels_colorspace[joint_ix, :], heatmap_res,
+        labels_colorspace_mapped[joint_ix, 0] = label_u
+        labels_colorspace_mapped[joint_ix, 1] = label_v
+        label = convert_color_space_label_to_heatmap(labels_colorspace_mapped[joint_ix, :], heatmap_res,
                                                      orig_img_res=heatmap_res)
         label = label.astype(float)
         labels_heatmaps[labels_ix, :, :] = label
         labels_ix += 1
-    return labels_heatmaps
+    return labels_heatmaps, labels_colorspace_mapped
+
+def crop_image_get_labels(data, labels_colorspace, joint_ixs, crop_res=(128, 128)):
+    data, crop_coords = crop_hand_rgbd(labels_colorspace, data, crop_res=crop_res)
+    labels_heatmaps, labels_colorspace =\
+        get_labels_cropped_heatmaps(labels_colorspace, joint_ixs, crop_coords, heatmap_res=crop_res)
+    return data, crop_coords, labels_heatmaps, labels_colorspace
 
 def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, flag_crop_hand=False):
     filenamebase = filenamebases[idx]
+    heatmap_res = (heatmap_res[1], heatmap_res[0])
     if flag_crop_hand:
         data = _get_data(root_folder, filenamebase, as_torch=False, new_res=None)
         labels_jointspace, labels_colorspace = get_labels_depth_and_color(root_folder, filenamebase)
@@ -327,15 +335,14 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
         #visualize.plot_joints(joints_colorspace=labels_colorspace, num_joints=len(joint_ixs), fig=fig)
         #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_' + 'orig')
         #visualize.show()
-        data, crop_coords = crop_hand_rgbd(labels_colorspace, data, crop_res=(128, 128))
+        data, crop_coords, labels_heatmaps, labels_colorspace =\
+            crop_image_get_labels(data, labels_colorspace, joint_ixs)
+        data_img_RGB = conv.numpy_to_plottable_rgb(data)
+        fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
+        visualize.plot_joints(joints_colorspace=labels_colorspace, fig=fig)
+        visualize.show()
         data = torch.from_numpy(data).float()
-        labels_heatmaps =\
-            get_labels_cropped_heatmaps(labels_colorspace, joint_ixs, crop_coords, heatmap_res)
         labels_heatmaps = torch.from_numpy(labels_heatmaps).float()
-        #data_img_RGB = conv.numpy_to_plottable_rgb(data)
-        #fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
-        #visualize.plot_joints(joints_colorspace=labels_colorspace, num_joints=len(joint_ixs), fig=fig)
-        #visualize.show()
     else:
         data = _get_data(root_folder, filenamebase, heatmap_res)
         labels_heatmaps, labels_jointvec, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
@@ -365,6 +372,9 @@ class SynthHandsDataset(Dataset):
     def __getitem__(self, idx):
         return _get_data_labels(self.dataset_folder, idx, self.filenamebases,
                                 self.heatmap_res, self.joint_ixs, flag_crop_hand=self.crop_hand)
+
+    def get_filenamebase(self, idx):
+        return self.filenamebases[idx]
 
     def get_raw_joints_of_example_ix(self, example_ix):
         return _read_label(self.filenamebases[example_ix])
@@ -497,8 +507,6 @@ def _get_downsample_image_func(module_name):
         return cv2.resize
 
 def change_res_image(image, new_res, module_name='scipy'):
-    if module_name == 'opencv':
-        new_res = (new_res[1], new_res[0])
     image = _get_downsample_image_func(module_name)(image, new_res)
     return image
 def _read_RGB_image(image_filepath, new_res=None, depth=False, module_name='scipy'):

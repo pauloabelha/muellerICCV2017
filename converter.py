@@ -48,3 +48,10 @@ def batch_numpy_to_plottable_rgb(batch_numpy_img, batch_axis=0):
         imgs[batch_idx] = img
     return imgs
 
+def heatmaps_to_joints_colorspace(heatmaps):
+    num_joints = heatmaps.shape[0]
+    joints_colorspace = np.zeros((num_joints, 2))
+    for joint_ix in range(num_joints):
+        heatmap = heatmaps[joint_ix, :, :]
+        joints_colorspace[joint_ix, :] = np.unravel_index(np.argmax(heatmap), heatmap.shape)
+    return joints_colorspace
