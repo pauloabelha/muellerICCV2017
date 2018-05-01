@@ -98,5 +98,6 @@ def parse_args(model_class):
     if valid_vars['cross_entropy']:
         print_verbose("Using cross entropy loss", args.verbose)
 
+    control_vars['num_iter'] = 0
     return model, optimizer, control_vars, valid_vars, train_control_vars
 

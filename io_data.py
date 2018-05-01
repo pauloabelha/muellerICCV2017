@@ -28,7 +28,12 @@ NUM_JOINTS = 21
 def load_checkpoint(filename, model_class, num_iter=0, log_interval=0,
                     log_interval_valid=0, batch_size=0, max_mem_batch=0):
     # load file
-    torch_file = torch.load(filename)
+    try:
+        torch_file = torch.load(filename)
+        override_to_not_use_cuda = False
+    except RuntimeError:
+        override_to_not_use_cuda = True
+        torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
     # load model
     model_state_dict = torch_file['model_state_dict']
     try:
@@ -65,12 +70,18 @@ def load_checkpoint(filename, model_class, num_iter=0, log_interval=0,
     params_dict['joint_ixs'] = train_vars['joint_ixs']
     params_dict['use_cuda'] = train_vars['use_cuda']
     params_dict['cross_entropy'] = train_vars['cross_entropy']
+
+    if override_to_not_use_cuda:
+        params_dict['use_cuda'] = False
+
     model = model_class(params_dict)
     model.load_state_dict(model_state_dict)
     # load optimizer
     optimizer_state_dict = torch_file['optimizer_state_dict']
     optimizer = optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
+
+
     return model, optimizer, train_vars, control_vars
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
