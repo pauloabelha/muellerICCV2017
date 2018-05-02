@@ -336,12 +336,15 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     msg += print_verbose("\tTotal mean pixel loss: " + str(aa), verbose) + '\n'
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
+    tot_joint_loss_avg = 0
     for joint_ix in model.joint_ixs:
         msg += print_verbose("\tJoint index: " + str(joint_ix), verbose) + "\n"
         mean_joint_pixel_loss = np.mean(
                                  np.array(vars['pixel_losses'])
                                  [-control_vars['log_interval']:, joint_ix])
         joint_loss_avg += mean_joint_pixel_loss
+        tot_mean_joint_pixel_loss = np.mean(np.array(vars['pixel_losses'])[:, joint_ix])
+        tot_joint_loss_avg += tot_mean_joint_pixel_loss
         msg += print_verbose("\tTraining set mean error for last " + str(control_vars['log_interval']) +
                              " iterations (average pixel loss): " +
                              str(mean_joint_pixel_loss),
@@ -371,9 +374,15 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
             "-------------------------------------------------------------------------------------------",
             verbose) + "\n"
     joint_loss_avg /= len(model.joint_ixs)
+    tot_joint_loss_avg /= len(model.joint_ixs)
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     msg += print_verbose("\tCurrent mean pixel loss: " + str(joint_loss_avg), verbose) + '\n'
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    msg += print_verbose("\tTotal mean pixel loss: " + str(tot_joint_loss_avg), verbose) + '\n'
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     if not control_vars['output_filepath'] == '':
