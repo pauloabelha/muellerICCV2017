@@ -235,7 +235,7 @@ def get_labels_depth_and_color(root_folder, filenamebase, label_suffix='_joint_p
     for i in range(labels_jointspace.shape[0]):
         labels_colorspace[i, 0], labels_colorspace[i, 1],  labels_joint_depth_z[i] \
             = camera.joint_depth2color(labels_jointspace[i])
-    return labels_jointspace, labels_colorspace
+    return labels_jointspace, labels_colorspace, labels_joint_depth_z
 
 def get_labels_jointvec(labels_jointspace, joint_ixs, rel_root=False):
     labels_ix = 0
@@ -247,7 +247,7 @@ def get_labels_jointvec(labels_jointspace, joint_ixs, rel_root=False):
             labels_jointspace[joint_ix, :] -= hand_root
         labels_jointvec[labels_ix * 3:(labels_ix * 3) + 3] = labels_jointspace[joint_ix, :]
         labels_ix += 1
-    return labels_jointvec
+    return labels_jointvec, hand_root
 
 def get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint_ixs, heatmap_res):
     labels_heatmaps = np.zeros((len(joint_ixs), heatmap_res[0], heatmap_res[1]))
@@ -263,13 +263,13 @@ def get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint
     return labels_heatmaps, labels_jointvec
 
 def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt'):
-    labels_jointspace, labels_colorspace = \
+    labels_jointspace, labels_colorspace, labels_joint_depth_z = \
         get_labels_depth_and_color(root_folder, filenamebase, label_suffix=label_suffix)
     labels_heatmaps, labels_jointvec = \
         get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint_ixs, heatmap_res)
     labels_jointvec = torch.from_numpy(labels_jointvec).float()
     labels_heatmaps = torch.from_numpy(labels_heatmaps).float()
-    return labels_heatmaps, labels_jointvec, labels_colorspace
+    return labels_heatmaps, labels_jointvec, labels_colorspace, labels_joint_depth_z
 
 def crop_hand_rgbd(joints_uv, image_rgbd, crop_res):
     min_u = min(joints_uv[:, 0]) - 10
@@ -327,9 +327,9 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
     heatmap_res = (heatmap_res[1], heatmap_res[0])
     if flag_crop_hand:
         data = _get_data(root_folder, filenamebase, as_torch=False, new_res=None)
-        labels_jointspace, labels_colorspace = get_labels_depth_and_color(root_folder, filenamebase)
-        labels_jointvec = get_labels_jointvec(labels_jointspace, joint_ixs, rel_root=True)
-        labels_jointvec = torch.from_numpy(labels_jointvec).float()
+        labels_jointspace, labels_colorspace, labels_joint_depth_z = get_labels_depth_and_color(root_folder, filenamebase)
+        labels_jointvec, handroot = get_labels_jointvec(labels_jointspace, joint_ixs, rel_root=True)
+
         #data_img_RGB = conv.numpy_to_plottable_rgb(data)
         #fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
         #visualize.plot_joints(joints_colorspace=labels_colorspace, num_joints=len(joint_ixs), fig=fig)
@@ -338,15 +338,18 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
         data, crop_coords, labels_heatmaps, labels_colorspace =\
             crop_image_get_labels(data, labels_colorspace, joint_ixs)
         data_img_RGB = conv.numpy_to_plottable_rgb(data)
-        fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
-        visualize.plot_joints(joints_colorspace=labels_colorspace, fig=fig)
-        visualize.show()
+        #fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
+        #visualize.plot_3D_joints(joints_vec=labels_jointvec)
+        #visualize.plot_joints(joints_colorspace=labels_colorspace, fig=fig)
+        #visualize.show()
         data = torch.from_numpy(data).float()
         labels_heatmaps = torch.from_numpy(labels_heatmaps).float()
+        labels_jointvec = torch.from_numpy(labels_jointvec).float()
     else:
         data = _get_data(root_folder, filenamebase, heatmap_res)
-        labels_heatmaps, labels_jointvec, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
-    labels = labels_heatmaps, labels_jointvec
+        labels_heatmaps, labels_jointvec, _, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
+        hand_root = labels_jointvec[0:3]
+    labels = labels_heatmaps, labels_jointvec, handroot
     return data, labels
 
 class SynthHandsDataset(Dataset):
@@ -417,7 +420,7 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbo
         shuffle=False)
     if verbose:
         data_example, label_example = dataset[0]
-        labels_heatmaps, label_joints = label_example
+        labels_heatmaps, label_joints, label_handroot = label_example
         print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
         print("\tExample shape: " + str(data_example.shape))
         print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))
@@ -473,7 +476,8 @@ def _read_label(label_filepath):
     with open(label_filepath, 'r') as f:
         first_line = f.readline()
     first_line_nums = first_line.split(',')
-    return np.reshape(first_line_nums, (NUM_JOINTS, 3)).astype(float)
+    reshaped_joints = np.reshape(first_line_nums, (NUM_JOINTS, 3)).astype(float)
+    return reshaped_joints
 
 def _read_RGB_image_opencv(image_filepath, depth):
     if depth:

@@ -7,9 +7,19 @@ import time
 from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
-from HALNet import HALNet
+from JORNet import JORNet
 import visualize
 import converter as conv
+import numpy as np
+import camera
+
+def get_loss_weights(curr_iter):
+    weights_heatmaps_loss = [0.5, 0.5, 0.5, 1.0]
+    weights_joints_loss = [1250, 1250, 1250, 2500]
+    if curr_iter > 45000:
+        weights_heatmaps_loss = [0.1, 0.1, 0.1, 1.0]
+        weights_joints_loss = [250, 250, 250, 2500]
+    return weights_heatmaps_loss, weights_joints_loss
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -21,7 +31,7 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         # start time counter
         start = time.time()
         # get data and targetas cuda variables
-        target_heatmaps, target_joints = target
+        target_heatmaps, target_joints, target_handroot = target
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
         if valid_vars['use_cuda']:
             data = data.cuda()
@@ -34,21 +44,34 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             loss_func = my_losses.cross_entropy_loss_p_logq
         else:
             loss_func = my_losses.euclidean_loss
-        loss = my_losses.calculate_loss_HALNet(loss_func,
-            output, target_heatmaps, model.joint_ixs, model.WEIGHT_LOSS_INTERMED1,
-            model.WEIGHT_LOSS_INTERMED2, model.WEIGHT_LOSS_INTERMED3,
-            model.WEIGHT_LOSS_MAIN, control_vars['iter_size'])
-
+        weights_heatmaps_loss, weights_joints_loss = get_loss_weights(control_vars['curr_iter'])
+        loss, loss_heatmaps, loss_joints = my_losses.calculate_loss_JORNet(
+            loss_func, output, target_heatmaps, target_joints, valid_vars['joint_ixs'],
+            weights_heatmaps_loss, weights_joints_loss, control_vars['iter_size'])
+        valid_vars['total_loss'] += loss
+        valid_vars['total_joints_loss'] += loss_joints
+        valid_vars['total_heatmaps_loss'] += loss_heatmaps
+        # accumulate pixel dist loss for sub-mini-batch
+        valid_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
+            valid_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
+        valid_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
+            valid_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
+        # get boolean variable stating whether a mini-batch has been completed
 
         for i in range(control_vars['max_mem_batch']):
             filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
             filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
-            fig = visualize.create_fig()
-            #visualize.plot_joints_from_heatmaps(output[3][i].data.numpy(), fig=fig,
+            visualize.plot_image(data[i].data.numpy(), title=filenamebase)
+            target_joints_colorspace = camera.joints_depth2color(output[7][i].data.numpy().reshape((21, 3)),
+                                                                 target_handroot.data.numpy())
+            #target_joints_colorspace = camera.joints_depth2color(target_joints.data.numpy().reshape((21, 3)), target_handroot.data.numpy())
+            visualize.plot_3D_joints(target_joints_colorspace)
+            #fig = visualize.create_fig()
+            #visualize.plot_joints_from_heatmaps(output[3][i].data.numpy(),
             #                                    title=filenamebase, data=data[i].data.numpy())
-            visualize.plot_image_and_heatmap(output[3][i][8].data.numpy(),
-                                             data=data[i].data.numpy(),
-                                             title=filenamebase, fig=fig)
+            #visualize.plot_image_and_heatmap(output[3][i][8].data.numpy(),
+            #                                 data=data[i].data.numpy(),
+            #                                 title=filenamebase)
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_heatmap')
 
             #labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
@@ -59,17 +82,19 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
             visualize.show()
+            aa1 = target_joints[i].data.numpy().reshape((21, 3))
+            aa2 = output[7][i].data.numpy().reshape((21, 3))
+            print(np.sum(np.abs(aa1 - aa2)) / 63)
 
         #loss.backward()
         valid_vars['total_loss'] += loss
+        valid_vars['total_joints_loss'] += loss_joints
+        valid_vars['total_heatmaps_loss'] += loss_heatmaps
         # accumulate pixel dist loss for sub-mini-batch
         valid_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             valid_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
-        if valid_vars['cross_entropy']:
-            valid_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
-                valid_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
-        else:
-            valid_vars['total_pixel_loss_sample'] = [-1] * len(model.joint_ixs)
+        valid_vars['total_pixel_loss_sample'] = my_losses.accumulate_pixel_dist_loss_from_sample_multiple(
+            valid_vars['total_pixel_loss_sample'], output[3], target_heatmaps, control_vars['batch_size'])
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
@@ -78,6 +103,14 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             # erase total loss
             total_loss = valid_vars['total_loss'].data[0]
             valid_vars['total_loss'] = 0
+            # append total joints loss
+            valid_vars['losses_joints'].append(valid_vars['total_joints_loss'].data[0])
+            # erase total joints loss
+            valid_vars['total_joints_loss'] = 0
+            # append total joints loss
+            valid_vars['losses_heatmaps'].append(valid_vars['total_heatmaps_loss'].data[0])
+            # erase total joints loss
+            valid_vars['total_heatmaps_loss'] = 0
             # append dist loss
             valid_vars['pixel_losses'].append(valid_vars['total_pixel_loss'])
             # erase pixel dist loss
@@ -87,9 +120,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             # erase dist loss of sample from output
             valid_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
             # check if loss is better
-            if valid_vars['losses'][-1] < valid_vars['best_loss']:
-                valid_vars['best_loss'] = valid_vars['losses'][-1]
-                print_verbose("  This is a best loss found so far: " + str(valid_vars['losses'][-1]), verbose)
+            #if valid_vars['losses'][-1] < valid_vars['best_loss']:
+            #    valid_vars['best_loss'] = valid_vars['losses'][-1]
+            #    print_verbose("  This is a best loss found so far: " + str(valid_vars['losses'][-1]), verbose)
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, 1, total_loss, valid_vars, control_vars)
@@ -120,15 +153,17 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
 
     return valid_vars, control_vars
 
-model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse_args(model_class=HALNet)
+model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse_args(model_class=JORNet)
+
 if valid_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 valid_loader = io_data.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
                                                   joint_ixs=model.joint_ixs,
-                                                  heatmap_res=(320, 240),
+                                                  heatmap_res=(128, 128),
                                               batch_size=control_vars['max_mem_batch'],
-                                              verbose=control_vars['verbose'])
+                                              verbose=control_vars['verbose'],
+                                                  crop_hand=True)
 control_vars['num_batches'] = len(valid_loader)
 control_vars['n_iter_per_epoch'] = int(len(valid_loader) / control_vars['iter_size'])
 control_vars['num_iter'] = len(valid_loader)

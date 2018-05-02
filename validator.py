@@ -8,17 +8,22 @@ def initialize_train_vars(args):
     train_vars['losses'] = []
     train_vars['losses_main'] = []
     train_vars['losses_joints'] = []
+    train_vars['best_loss_joints'] = 1e10
+    train_vars['total_joints_loss'] = 0
+    train_vars['losses_heatmaps'] = []
+    train_vars['best_loss_heatmaps'] = 1e10
+    train_vars['total_heatmaps_loss'] = 0
     train_vars['pixel_losses'] = []
     train_vars['pixel_losses_sample'] = []
     train_vars['best_loss'] = 1e10
     train_vars['best_pixel_loss'] = 1e10
     train_vars['best_pixel_loss_sample'] = 1e10
     train_vars['best_model_dict'] = {}
-    train_vars['joint_ixs'] = []
+    train_vars['joint_ixs'] = range(21)
     train_vars['use_cuda'] = False
     train_vars['cross_entropy'] = False
-    train_vars['root_folder'] = args.root_folder
-    train_vars['checkpoint_filenamebase'] = 'valid_net_log_'
+    train_vars['root_folder'] = os.path.dirname(os.path.abspath(__file__)) + '/'
+    train_vars['checkpoint_filenamebase'] = 'trained_net_log_'
     return train_vars
 
 # initialize control variables

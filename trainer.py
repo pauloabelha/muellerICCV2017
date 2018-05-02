@@ -72,6 +72,8 @@ def parse_args(model_class, random_id=-1):
                         help='Total number of epochs to train')
     parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
                         help='Whether to use cuda for training')
+    parser.add_argument('--override', dest='override', action='store_true', default=False,
+                        help='Whether to override checkpoint args for command line ones')
     parser.add_argument('-o', dest='output_filepath', default='',
                         help='Output file for logging')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=True,
@@ -126,6 +128,13 @@ def parse_args(model_class, random_id=-1):
         print_verbose("Using CUDA", args.verbose)
     else:
         print_verbose("Not using CUDA", args.verbose)
+
+    if args.override:
+        train_vars['root_folder'] = args.root_folder
+        train_vars['use_cuda'] = args.use_cuda
+        control_vars['log_interval'] = args.log_interval
+        control_vars['max_mem_batch'] = args.max_mem_batch
+        control_vars['batch_size'] = args.batch_size
 
     control_vars['num_epochs'] = 100
     control_vars['verbose'] = True

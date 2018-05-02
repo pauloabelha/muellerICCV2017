@@ -29,6 +29,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                   str(batch_idx+1) + "/" + str(control_vars['iter_size']), verbose, n_tabs=0, erase_line=True)
         # check if arrived at iter to start
         if control_vars['curr_epoch_iter'] < control_vars['start_iter_mod']:
+            control_vars['curr_epoch_iter'] = control_vars['start_iter_mod']
             if batch_idx % control_vars['iter_size'] == 0:
                 print_verbose("\rGoing through iterations to arrive at last one saved... " +
                       str(int(control_vars['curr_epoch_iter']*100.0/control_vars['start_iter_mod'])) + "% of " +
@@ -57,9 +58,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         # start time counter
         start = time.time()
         # get data and targetas cuda variables
-        target_heatmaps, target_joints = target
-        data, target_heatmaps, target_joints = Variable(data), Variable(target_heatmaps),\
-                                               Variable(target_joints)
+        target_heatmaps, target_joints, target_roothand = target
+        data, target_heatmaps, target_joints, target_roothand = Variable(data), Variable(target_heatmaps),\
+                                               Variable(target_joints), Variable(target_roothand)
         if train_vars['use_cuda']:
             data = data.cuda()
             target_heatmaps = target_heatmaps.cuda()

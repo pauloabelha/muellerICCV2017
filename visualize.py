@@ -23,6 +23,7 @@ import converter as conv
 import matplotlib.patches as mpatches
 import math
 import converter as conv
+from mpl_toolkits.mplot3d import axes3d, Axes3D #<-- Note the capitalization!
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):
     x = Variable(torch.randn(model_input_shape), requires_grad=True)
@@ -204,6 +205,37 @@ def plot_joints_from_colorspace(joints_colorspace, data=None, title='', fig=None
         data_img_RGB = conv.numpy_to_plottable_rgb(data)
         fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
     return fig
+
+def plot_3D_joints(joints_vec):
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    joints_vec = joints_vec.reshape((21, 3))
+    for i in range(5):
+        idx = (i * 4) + 1
+        ax.plot([joints_vec[0, 1], joints_vec[idx, 1]],
+                [joints_vec[0, 0], joints_vec[idx, 0]],
+                [joints_vec[0, 2], joints_vec[idx, 2]],
+                label='',
+                color='C0')
+    for j in range(5):
+        idx = (j * 4) + 1
+        for i in range(3):
+            ax.plot([joints_vec[idx, 1], joints_vec[idx + 1, 1]],
+                    [joints_vec[idx, 0], joints_vec[idx + 1, 0]],
+                    [joints_vec[idx, 2], joints_vec[idx + 1, 2]],
+                    label='',
+                    color='C' + str(j+1))
+            idx += 1
+    print(joints_vec)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim(0, 640)
+    ax.set_ylim(0, 480)
+    ax.set_zlim(0, 500)
+    ax.view_init(azim=270, elev=250)
+    plt.show()
+    aa =0
 
 def plot_image(data, title='', fig=None):
     if fig is None:
