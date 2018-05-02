@@ -348,7 +348,7 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
     else:
         data = _get_data(root_folder, filenamebase, heatmap_res)
         labels_heatmaps, labels_jointvec, _, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
-        hand_root = labels_jointvec[0:3]
+        handroot = labels_jointvec[0:3]
     labels = labels_heatmaps, labels_jointvec, handroot
     return data, labels
 
@@ -366,7 +366,10 @@ class SynthHandsDataset(Dataset):
         self.type = type
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split(root_folder=root_folder)
-        self.filenamebases = dataset_split_files['filenamebases_' + self.type]
+        if self.type == 'full':
+            self.filenamebases = dataset_split_files['filenamebases']
+        else:
+            self.filenamebases = dataset_split_files['filenamebases_' + self.type]
         self.length = len(self.filenamebases)
         self.dataset_folder = root_folder
         self.heatmap_res = heatmap_res
@@ -403,6 +406,9 @@ class SynthHandsValidDataset(SynthHandsDataset):
 class SynthHandsTestDataset(SynthHandsDataset):
     type = 'test'
 
+class SynthHandsFullDataset(SynthHandsDataset):
+    type = 'full'
+
 def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
@@ -411,6 +417,8 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbo
     elif type == 'valid':
         dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'test':
+        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+    elif type == 'full':
         dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
@@ -435,6 +443,9 @@ def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, crop_hand=Fa
 
 def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
     return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'test', batch_size)
+
+def get_SynthHands_fullloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'full', batch_size)
 
 
 def get_train_ixs(size, perc_train):
