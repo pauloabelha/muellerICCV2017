@@ -48,8 +48,7 @@ class JORNet(HALNet_class):
         out = out.view(-1, innerprod1_size)
         out_joints1 = self.map_out_to_loss(innerprod1_size)(out)
         #out_joints1 = self.innerproduct1(conv4fout)
-        out_joints2 = self.innerproduct2(out_joints1)
-        out_main_joints = out_joints2
+        out_main_joints = self.innerproduct2(out_joints1)
         return out_main_heatmaps, out_main_joints
 
     def forward(self, x):

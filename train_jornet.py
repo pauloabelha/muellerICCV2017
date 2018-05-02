@@ -143,6 +143,11 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                                         filename=train_vars['checkpoint_filenamebase'] + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
 
+            aa1 = target_joints[0].data.numpy().reshape((21, 3))
+            aa2 = output[7][0].data.numpy().reshape((21, 3))
+            output_joint_loss = np.sum(np.abs(aa1 - aa2)) / 63
+            print('\nOutput Joint Avg Loss: ' + str(output_joint_loss))
+
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
                      str(control_vars['tot_iter']) + ')' + ', (Batch ' + str(control_vars['batch_idx']+1) +\
