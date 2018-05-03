@@ -400,6 +400,7 @@ class SynthHandsDataset(Dataset):
 def _get_joint_prior(dataset_folder,  prior_file_name):
     joint_prior_dict = pickle.load(open(dataset_folder + prior_file_name, "rb"))
     joint_prior = joint_prior_dict['pair_dist_prob']
+    joint_prior /= joint_prior.sum()
     joint_prior = torch.from_numpy(joint_prior).float()
     return joint_prior
 
@@ -416,13 +417,13 @@ class SynthHandsDataset_prior(SynthHandsDataset):
 
     def __init__(self, root_folder, joint_ixs, type, heatmap_res, crop_hand):
         super(SynthHandsDataset_prior, self).__init__(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+        self.joint_prior = _get_joint_prior(self.dataset_folder, self.prior_file_name)
 
     def __getitem__(self, idx):
         data, labels = _get_data_labels(self.dataset_folder, idx, self.filenamebases,
                                 self.heatmap_res, self.joint_ixs, flag_crop_hand=self.crop_hand)
-        label_prior = _get_joint_prior(self.dataset_folder, self.prior_file_name)
         labels_list = list(labels)
-        labels_list.append(label_prior)
+        labels_list.append(self.joint_prior)
         labels = tuple(labels_list)
 
         return data, labels
