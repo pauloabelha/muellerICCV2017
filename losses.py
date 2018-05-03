@@ -29,6 +29,16 @@ def calculate_loss_HALNet(loss_func, output, target, joint_ixs,
     loss = loss / iter_size
     return loss
 
+def calculate_loss_HALNet_prior(loss_func, output, target_heatmaps, target_prior, joint_ixs,
+                                       weight_loss_intermed1, weight_loss_intermed2,
+                                       weight_loss_intermed3, weight_loss_main, iter_size):
+    loss_halnet = calculate_loss_HALNet(loss_func, output, target_heatmaps, joint_ixs,
+                                       weight_loss_intermed1, weight_loss_intermed2,
+                                       weight_loss_intermed3, weight_loss_main, iter_size)
+    loss_prior = loss_func(output[4], target_prior)
+    loss = loss_halnet + loss_prior
+    return loss, loss_prior
+
 def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, target_joints,
                              joint_ixs, weight_heatmaps_loss, weight_joints_loss, iter_size):
     loss_heatmaps = 0

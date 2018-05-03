@@ -7,6 +7,7 @@ import os
 import optimizers as my_optimizers
 import io_data
 from random import randint
+import datetime
 
 def initialize_train_vars(args):
     train_vars = {}
@@ -302,6 +303,14 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, control_vars, save
     }
     save_checkpoint(checkpoint_model_dict, filename=vars['checkpoint_filenamebase'] + '.pth.tar')
     msg = ''
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+    now = datetime.datetime.now()
+    msg += print_verbose('Time: ' + now.strftime("%Y-%m-%d %H:%M"), verbose) + "\n"
+
+    msg += print_verbose("-------------------------------------------------------------------------------------------",
+                         verbose) + "\n"
+
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     msg += print_verbose('Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' + \

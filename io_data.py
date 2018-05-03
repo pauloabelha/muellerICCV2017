@@ -397,6 +397,36 @@ class SynthHandsDataset(Dataset):
     def __len__(self):
         return self.length
 
+def _get_joint_prior(dataset_folder,  prior_file_name):
+    joint_prior_dict = pickle.load(open(dataset_folder + prior_file_name, "rb"))
+    joint_prior = joint_prior_dict['pair_dist_prob']
+    joint_prior = torch.from_numpy(joint_prior).float()
+    return joint_prior
+
+class SynthHandsDataset_prior(SynthHandsDataset):
+    type = ''
+    root_dir = ''
+    filenamebases = []
+    joint_ixs = []
+    length = 0
+    dataset_folder = ''
+    heatmap_res = None
+    crop_hand = False
+    prior_file_name = 'joint_prior.p'
+
+    def __init__(self, root_folder, joint_ixs, type, heatmap_res, crop_hand):
+        super(SynthHandsDataset_prior, self).__init__(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+
+    def __getitem__(self, idx):
+        data, labels = _get_data_labels(self.dataset_folder, idx, self.filenamebases,
+                                self.heatmap_res, self.joint_ixs, flag_crop_hand=self.crop_hand)
+        label_prior = _get_joint_prior(self.dataset_folder, self.prior_file_name)
+        labels_list = list(labels)
+        labels_list.append(label_prior)
+        labels = tuple(labels_list)
+
+        return data, labels
+
 class SynthHandsTrainDataset(SynthHandsDataset):
      type = 'train'
 
@@ -409,17 +439,20 @@ class SynthHandsTestDataset(SynthHandsDataset):
 class SynthHandsFullDataset(SynthHandsDataset):
     type = 'full'
 
-def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, type, batch_size=1):
+def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, type, batch_size=1):
     if verbose:
         print("Loading synthhands " + type + " dataset...")
+    dataset_class = SynthHandsDataset
+    if dataset_type == 'prior':
+        dataset_class = SynthHandsDataset_prior
     if type == 'train':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'valid':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'test':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     elif type == 'full':
-        dataset = SynthHandsDataset(root_folder, joint_ixs, type, heatmap_res, crop_hand)
+        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
     else:
         raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
     dataset_loader = torch.utils.data.DataLoader(
@@ -428,24 +461,29 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbo
         shuffle=False)
     if verbose:
         data_example, label_example = dataset[0]
-        labels_heatmaps, label_joints, label_handroot = label_example
+        if dataset_type == 'prior':
+            labels_heatmaps, label_joints, label_handroot, label_prior = label_example
+        else:
+            labels_heatmaps, label_joints, label_handroot, label_prior = label_example
         print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
         print("\tExample shape: " + str(data_example.shape))
         print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))
         print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
+        if dataset_type == 'prior':
+            print("\tLabel prior shape (pair * dist): " + str(label_prior.shape))
     return dataset_loader
 
-def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'train', batch_size)
+def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'train', batch_size)
 
-def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'valid', batch_size)
+def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'valid', batch_size)
 
-def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'test', batch_size)
+def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'test', batch_size)
 
-def get_SynthHands_fullloader(root_folder, joint_ixs, heatmap_res, crop_hand=False, batch_size=1, verbose=False):
-    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, 'full', batch_size)
+def get_SynthHands_fullloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', op_hand=False, batch_size=1, verbose=False):
+    return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'full', batch_size)
 
 
 def get_train_ixs(size, perc_train):
