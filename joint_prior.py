@@ -6,12 +6,15 @@ from matplotlib import pyplot as plt
 
 root_folder = '/home/paulo/rds_muri/paulo/synthhands/SynthHands_Release/'
 
-load = False
+load = True
 
 if load:
     joint_prior = pickle.load(open("joint_prior.p", "rb"))
     plt.imshow(joint_prior['pair_dist_prob'].astype(int), cmap='viridis', interpolation='nearest')
+    plt.yticks(np.arange(0, 210, 10.0))
+    plt.xticks(np.arange(0, 300, 10.0))
     plt.show()
+
 
 
 full_loader = io_data.get_SynthHands_fullloader(root_folder=root_folder,
