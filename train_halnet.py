@@ -17,8 +17,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                   str(batch_idx+1) + "/" + str(control_vars['iter_size']), verbose, n_tabs=0, erase_line=True)
         # check if arrived at iter to start
         if control_vars['curr_epoch_iter'] < control_vars['start_iter_mod']:
+            msg = ''
             if batch_idx % control_vars['iter_size'] == 0:
-                print_verbose("\rGoing through iterations to arrive at last one saved... " +
+                msg += print_verbose("\rGoing through iterations to arrive at last one saved... " +
                       str(int(control_vars['curr_epoch_iter']*100.0/control_vars['start_iter_mod'])) + "% of " +
                       str(control_vars['start_iter_mod']) + " iterations (" +
                       str(control_vars['curr_epoch_iter']) + "/" + str(control_vars['start_iter_mod']) + ")",
@@ -26,6 +27,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 control_vars['curr_epoch_iter'] += 1
                 control_vars['curr_iter'] += 1
                 curr_epoch_iter += 1
+            if not control_vars['output_filepath'] == '':
+                with open(control_vars['output_filepath'], 'a') as f:
+                    f.write(msg + '\n')
             continue
         # save checkpoint after final iteration
         if control_vars['curr_iter'] == control_vars['num_iter']:
