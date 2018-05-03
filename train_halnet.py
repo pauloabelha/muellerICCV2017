@@ -45,7 +45,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         # start time counter
         start = time.time()
         # get data and targetas cuda variables
-        target_heatmaps, target_joints = target
+        target_heatmaps, target_joints, target_joints_z = target
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
         if train_vars['use_cuda']:
             data = data.cuda()
