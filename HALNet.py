@@ -102,6 +102,7 @@ def make_bilinear_weights(size, num_channels):
     return w
 
 
+
 class SoftmaxLogProbability2D(torch.nn.Module):
     def __init__(self):
         super(SoftmaxLogProbability2D, self).__init__()

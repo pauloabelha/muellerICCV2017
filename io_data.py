@@ -414,7 +414,7 @@ def _get_joints_dist_posterior(target_joints):
         while j < D.shape[1]:
             # print('(' + str(i) + ', ' + str(j) + '): ' + str(D[i, j]))
             dist = D[i, j]
-            pair_dist_prob[ix_pair, int(dist)] += 1
+            pair_dist_prob[ix_pair, int(dist)] = 1
             j += 1
             ix_pair += 1
     joint_posterior = torch.from_numpy(joint_posterior).float()

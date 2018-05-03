@@ -6,6 +6,10 @@ def euclidean_loss(output, target):
     batch_size = output.data.shape[0]
     return (output - target).abs().sum() / batch_size
 
+def cross_entropy_loss_p_logq_1d(torchvar_p, torchvar_logq, eps=1e-9):
+    batch_size = torchvar_p.data.shape[0]
+    return (-((torchvar_p + eps) * torchvar_logq + eps).sum(dim=1)).sum() / batch_size
+
 def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
     return (-((torchvar_p + eps) * torchvar_logq + eps).sum(dim=1).sum(dim=1)).sum() / batch_size
@@ -35,7 +39,9 @@ def calculate_loss_HALNet_prior(loss_func, output, target_heatmaps, target_prior
     loss_halnet = calculate_loss_HALNet(loss_func, output, target_heatmaps, joint_ixs,
                                        weight_loss_intermed1, weight_loss_intermed2,
                                        weight_loss_intermed3, weight_loss_main, iter_size)
-    loss_prior = loss_func(output[4], target_prior)
+    loss_prior = 0
+    for idx_joint_pair in range(output[4].shape[1]):
+        loss_prior += cross_entropy_loss_p_logq_1d(output[4][:, idx_joint_pair, :], target_prior[:, idx_joint_pair, :])
     loss = loss_halnet + loss_prior
     return loss, loss_prior
 
