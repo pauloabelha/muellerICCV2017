@@ -17,6 +17,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 import converter as conv
 import visualize
+from scipy.spatial.distance import pdist, squareform
 
 
 # resolution in rows x cols
@@ -404,6 +405,21 @@ def _get_joint_prior(dataset_folder,  prior_file_name):
     joint_prior = torch.from_numpy(joint_prior).float()
     return joint_prior
 
+def _get_joints_dist_posterior(target_joints):
+    joint_posterior = pair_dist_prob = np.zeros((210, 300))
+    D = squareform(pdist(target_joints.reshape((21, 3))))
+    ix_pair = 0
+    for i in range(D.shape[0]):
+        j = i + 1
+        while j < D.shape[1]:
+            # print('(' + str(i) + ', ' + str(j) + '): ' + str(D[i, j]))
+            dist = D[i, j]
+            pair_dist_prob[ix_pair, int(dist)] += 1
+            j += 1
+            ix_pair += 1
+    joint_posterior = torch.from_numpy(joint_posterior).float()
+    return joint_posterior
+
 class SynthHandsDataset_prior(SynthHandsDataset):
     type = ''
     root_dir = ''
@@ -417,13 +433,15 @@ class SynthHandsDataset_prior(SynthHandsDataset):
 
     def __init__(self, root_folder, joint_ixs, type, heatmap_res, crop_hand):
         super(SynthHandsDataset_prior, self).__init__(root_folder, joint_ixs, type, heatmap_res, crop_hand)
-        self.joint_prior = _get_joint_prior(self.dataset_folder, self.prior_file_name)
+        #self.joint_prior = _get_joint_prior(self.dataset_folder, self.prior_file_name)
 
     def __getitem__(self, idx):
         data, labels = _get_data_labels(self.dataset_folder, idx, self.filenamebases,
                                 self.heatmap_res, self.joint_ixs, flag_crop_hand=self.crop_hand)
         labels_list = list(labels)
-        labels_list.append(self.joint_prior)
+        target_joints = labels[1].data.numpy()
+        joint_posterior = _get_joints_dist_posterior(target_joints)
+        labels_list.append(joint_posterior)
         labels = tuple(labels_list)
 
         return data, labels
