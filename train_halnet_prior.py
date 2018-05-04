@@ -128,6 +128,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                 msg += print_verbose(
                     "-------------------------------------------------------------------------------------------",
                     verbose) + "\n"
+                if not control_vars['output_filepath'] == '':
+                    with open(control_vars['output_filepath'], 'a') as f:
+                        f.write(msg + '\n')
 
             if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
                 print_verbose("\nSaving model and checkpoint model for validation", verbose)
