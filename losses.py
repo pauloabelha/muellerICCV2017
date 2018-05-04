@@ -42,6 +42,7 @@ def calculate_loss_HALNet_prior(loss_func, output, target_heatmaps, target_prior
     loss_prior = 0
     for idx_joint_pair in range(output[4].shape[1]):
         loss_prior += cross_entropy_loss_p_logq_1d(output[4][:, idx_joint_pair, :], target_prior[:, idx_joint_pair, :])
+    loss_prior /= iter_size
     loss = loss_halnet + loss_prior
     return loss, loss_prior
 
@@ -51,6 +52,7 @@ def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, ta
     for joint_ix in joint_ixs:
         loss_heatmaps += loss_func(output_hm[:, joint_ix, :, :], target_heatmaps[:, joint_ix, :, :])
     loss_joints = euclidean_loss(output_j, target_joints)
+    loss_joints /= iter_size
     loss = (weight_heatmaps_loss * loss_heatmaps) + (weight_joints_loss * loss_joints)
     loss = loss / iter_size
     return loss, loss_heatmaps, loss_joints
