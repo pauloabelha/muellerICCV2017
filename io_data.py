@@ -483,7 +483,7 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, cr
         if dataset_type == 'prior':
             labels_heatmaps, label_joints, label_handroot, label_prior = label_example
         else:
-            labels_heatmaps, label_joints, label_handroot, label_prior = label_example
+            labels_heatmaps, label_joints, label_handroot = label_example
         print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
         print("\tExample shape: " + str(data_example.shape))
         print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))

@@ -88,9 +88,9 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             loss_func, output, target_heatmaps, target_joints, train_vars['joint_ixs'],
             weights_heatmaps_loss, weights_joints_loss, control_vars['iter_size'])
         loss.backward()
-        train_vars['total_loss'] += loss
-        train_vars['total_joints_loss'] += loss_joints
-        train_vars['total_heatmaps_loss'] += loss_heatmaps
+        train_vars['total_loss'] += loss.data[0]
+        train_vars['total_joints_loss'] += loss_joints.data[0]
+        train_vars['total_heatmaps_loss'] += loss_heatmaps.data[0]
         # accumulate pixel dist loss for sub-mini-batch
         train_vars['total_pixel_loss'] = my_losses.accumulate_pixel_dist_loss_multiple(
             train_vars['total_pixel_loss'], output[3], target_heatmaps, control_vars['batch_size'])
@@ -104,16 +104,16 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # clear optimiser
             optimizer.zero_grad()
             # append total loss
-            train_vars['losses'].append(train_vars['total_loss'].data[0])
+            train_vars['losses'].append(train_vars['total_loss'])
             # erase total loss
-            total_loss = train_vars['total_loss'].data[0]
+            total_loss = train_vars['total_loss']
             train_vars['total_loss'] = 0
             # append total joints loss
-            train_vars['losses_joints'].append(train_vars['total_joints_loss'].data[0])
+            train_vars['losses_joints'].append(train_vars['total_joints_loss'])
             # erase total joints loss
             train_vars['total_joints_loss'] = 0
             # append total joints loss
-            train_vars['losses_heatmaps'].append(train_vars['total_heatmaps_loss'].data[0])
+            train_vars['losses_heatmaps'].append(train_vars['total_heatmaps_loss'])
             # erase total joints loss
             train_vars['total_heatmaps_loss'] = 0
             # append dist loss
@@ -154,8 +154,8 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                                         filename=train_vars['checkpoint_filenamebase'] + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
 
-            aa1 = target_joints[0].data.numpy().reshape((21, 3))
-            aa2 = output[7][0].data.numpy().reshape((21, 3))
+            aa1 = target_joints[0].data.cpu().numpy().reshape((21, 3))
+            aa2 = output[7][0].data.cpu().numpy().reshape((21, 3))
             output_joint_loss = np.sum(np.abs(aa1 - aa2)) / 63
             print('\nOutput Joint Avg Loss: ' + str(output_joint_loss))
 

@@ -54,6 +54,7 @@ def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, ta
     loss_joints = euclidean_loss(output_j, target_joints)
     loss_joints /= iter_size
     loss = (weight_heatmaps_loss * loss_heatmaps) + (weight_joints_loss * loss_joints)
+    loss = loss / iter_size
     return loss, loss_heatmaps, loss_joints
 
 def calculate_loss_JORNet_only_joints(loss_func, output, target_heatmaps, target_joints, joint_ixs,
