@@ -223,7 +223,8 @@ class HALNet(nn.Module):
         out_intermed3 = self.interm_loss3_deconv(out_intermed3)
         if self.cross_entropy:
             out_intermed3 = self.interm_loss3_softmax(out_intermed3)
-        return out_intermed1, out_intermed2, out_intermed3, conv4fout
+        return out_intermed1, out_intermed2, out_intermed3, conv4fout,\
+               res3aout, res4aout, conv4eout
 
     def forward_main_loss(self, conv4fout):
         out = self.main_loss_conv(conv4fout)
@@ -236,7 +237,7 @@ class HALNet(nn.Module):
 
     def forward(self, x):
         # get subhalnet outputs (common to JORNet)
-        out_intermed1, out_intermed2, out_intermed3, conv4fout = self.forward_subnet(x)
+        out_intermed1, out_intermed2, out_intermed3, conv4fout, _, _, _ = self.forward_subnet(x)
         # out to main loss of halnet
         out_main = self.forward_main_loss(conv4fout)
         return out_intermed1, out_intermed2, out_intermed3, out_main

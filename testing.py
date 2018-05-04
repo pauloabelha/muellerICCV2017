@@ -1,12 +1,32 @@
+import matplotlib.pyplot as plt
 
 root_folder = '/home/paulo/'
 filepath_prior = root_folder + 'output_HALNet_prior_1804790995.txt'
 filepath = root_folder + 'output_HALNet_1345115866.txt'
-import matplotlib.pyplot as plt
+filepath_jornet = root_folder + 'handtracking/' + 'output_JORNet_1392734821.txt'
 
 mean_loss_prefix = 'Mean loss for last 10 iterations (average total loss): '
 prior_loss_prefix = 'Mean loss (prior) for last 10 iterations (average total loss): '
+iter_prefix = 'Training (Epoch #'
 
+mean_losses = []
+ix = 0
+with open(filepath_jornet) as fp:
+    for line in fp:
+        if mean_loss_prefix in line:
+            mean_loss = float(line[len(mean_loss_prefix):])
+            mean_losses.append(mean_loss)
+            print(mean_loss)
+            ix += 1
+        if iter_prefix in line:
+            print(line)
+
+plt.plot(mean_losses)
+plt.ylabel('Mean losses (joint pair dist)')
+plt.show()
+
+
+'''
 mean_losses_hm = []
 with open(filepath) as fp:
     for line in fp:
@@ -36,3 +56,4 @@ plt.show()
 plt.plot(mean_losses_joint_dist_prior)
 plt.ylabel('Mean losses (joint pair dist)')
 plt.show()
+'''

@@ -69,15 +69,20 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             target_heatmaps = target_heatmaps.cuda()
             target_joints = target_joints.cuda()
         # get model output
-
-        #visualize.plot_joints_from_heatmaps(target_heatmaps[0, :, :, :].data.numpy(),
-        #                                    title='', data=data[0].data.numpy())
-        #visualize.show()
-        #visualize.plot_image_and_heatmap(target_heatmaps[0][20].data.numpy(),
-        #                                 data=data[0].data.numpy(),
-        #                                 title='')
-        #visualize.show()
         output = model(data)
+        '''
+        visualize.plot_joints_from_heatmaps(target_heatmaps[0, :, :, :].cpu().data.numpy(),
+                                            title='', data=data[0].cpu().data.numpy())
+        visualize.show()
+        visualize.plot_image_and_heatmap(target_heatmaps[0][4].cpu().data.numpy(),
+                                         data=data[0].cpu().data.numpy(),
+                                         title='')
+        visualize.show()
+        visualize.plot_image_and_heatmap(output[3][0][4].cpu().data.numpy(),
+                                         data=data[0].cpu().data.numpy(),
+                                         title='')
+        visualize.show()
+        '''
         # accumulate loss for sub-mini-batch
         if train_vars['cross_entropy']:
             loss_func = my_losses.cross_entropy_loss_p_logq

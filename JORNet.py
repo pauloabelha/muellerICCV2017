@@ -28,35 +28,50 @@ class JORNet(HALNet_class):
         if self.cross_entropy:
             self.softmax_final = cudafy(HALNet.
                                         SoftmaxLogProbability2D(), self.use_cuda)
-        self.innerproduct1 = cudafy(
-            nn.Linear(in_features=self.innerprod1_size, out_features=200), self.use_cuda)
-        self.innerproduct2 = cudafy(
+        self.innerproduct1_joint1 = cudafy(
+            nn.Linear(in_features=524288, out_features=200), self.use_cuda)
+        self.innerproduct2_joint1 = cudafy(
             nn.Linear(in_features=200, out_features=self.num_joints * 3), self.use_cuda)
-        self.softmax_final = cudafy(HALNet.SoftmaxLogProbability2D(), self.use_cuda)
 
-    def forward_loss(self, out_for_loss):
-        # main loss
-        out = self.map_out_conv(out_for_loss.shape[1])(out_for_loss)
-        out = self.main_loss_deconv1(out)
-        out_main_heatmaps = out
-        # main loss
-        if self.cross_entropy:
-            out_main_heatmaps = self.softmax_final(out)
-        # joints output
-        # this view is necessary to make layers agree
-        innerprod1_size = out_for_loss.shape[1] * out_for_loss.shape[2] * out_for_loss.shape[3]
-        out_joints = out_for_loss.view(-1, innerprod1_size)
-        out_joints1 = self.map_out_to_loss(innerprod1_size)(out_joints)
-        #out_joints1 = self.map_out_to_loss(200)(out_joints1)
-        out_main_joints = self.innerproduct2(out_joints1)
-        return out_main_heatmaps, out_main_joints
+        self.innerproduct1_joint2 = cudafy(
+            nn.Linear(in_features=262144, out_features=200), self.use_cuda)
+        self.innerproduct2_joint2 = cudafy(
+            nn.Linear(in_features=200, out_features=self.num_joints * 3), self.use_cuda)
+
+        self.innerproduct1_joint3 = cudafy(
+            nn.Linear(in_features=131072, out_features=200), self.use_cuda)
+        self.innerproduct2_joint3 = cudafy(
+            nn.Linear(in_features=200, out_features=self.num_joints * 3), self.use_cuda)
+
+        self.innerproduct1_joint_main = cudafy(
+            nn.Linear(in_features=65536, out_features=200), self.use_cuda)
+        self.innerproduct2_join_main = cudafy(
+            nn.Linear(in_features=200, out_features=self.num_joints * 3), self.use_cuda)
 
     def forward(self, x):
-        res3aout, res4aout, conv4eout, conv4fout = self.forward_common_net(x)
-        # losses
-        out_intermed_hm1, out_intermed_j1 = self.forward_loss(res3aout)
-        out_intermed_hm2, out_intermed_j2 = self.forward_loss(res4aout)
-        out_intermed_hm3, out_intermed_j3 = self.forward_loss(conv4eout)
-        out_intermed_hm_main, out_intermed_j_main = self.forward_loss(conv4fout)
+        out_intermed_hm1, out_intermed_hm2, out_intermed_hm3, conv4fout, \
+        res3aout, res4aout, conv4eout = self.forward_subnet(x)
+        out_intermed_hm_main = self.forward_main_loss(conv4fout)
+
+        innerprod1_size = res3aout.shape[1] * res3aout.shape[2] * res3aout.shape[3]
+        out_intermed_j1 = res3aout.view(-1, innerprod1_size)
+        out_intermed_j1 = self.innerproduct1_joint1(out_intermed_j1)
+        out_intermed_j1 = self.innerproduct2_joint1(out_intermed_j1)
+
+        innerprod1_size = res4aout.shape[1] * res4aout.shape[2] * res4aout.shape[3]
+        out_intermed_j2 = res4aout.view(-1, innerprod1_size)
+        out_intermed_j2 = self.innerproduct1_joint2(out_intermed_j2)
+        out_intermed_j2 = self.innerproduct2_joint2(out_intermed_j2)
+
+        innerprod1_size = conv4eout.shape[1] * conv4eout.shape[2] * conv4eout.shape[3]
+        out_intermed_j3 = conv4eout.view(-1, innerprod1_size)
+        out_intermed_j3 = self.innerproduct1_joint3(out_intermed_j3)
+        out_intermed_j3 = self.innerproduct2_joint3(out_intermed_j3)
+
+        innerprod1_size = conv4fout.shape[1] * conv4fout.shape[2] * conv4fout.shape[3]
+        out_intermed_j_main = conv4fout.view(-1, innerprod1_size)
+        out_intermed_j_main = self.innerproduct1_joint_main(out_intermed_j_main)
+        out_intermed_j_main = self.innerproduct2_join_main(out_intermed_j_main)
+
         return out_intermed_hm1, out_intermed_hm2, out_intermed_hm3, out_intermed_hm_main,\
                out_intermed_j1, out_intermed_j2, out_intermed_j3, out_intermed_j_main

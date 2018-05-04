@@ -1,6 +1,8 @@
 import numpy as np
 import probs
 import torch.nn.functional as F
+from torch.autograd import Variable
+import torch
 
 def euclidean_loss(output, target):
     batch_size = output.data.shape[0]
@@ -46,17 +48,6 @@ def calculate_loss_HALNet_prior(loss_func, output, target_heatmaps, target_prior
     loss = loss_halnet + loss_prior
     return loss, loss_prior
 
-def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, target_joints,
-                             joint_ixs, weight_heatmaps_loss, weight_joints_loss, iter_size):
-    loss_heatmaps = 0
-    for joint_ix in joint_ixs:
-        loss_heatmaps += loss_func(output_hm[:, joint_ix, :, :], target_heatmaps[:, joint_ix, :, :])
-    loss_joints = euclidean_loss(output_j, target_joints)
-    loss_joints /= iter_size
-    loss = (weight_heatmaps_loss * loss_heatmaps) + (weight_joints_loss * loss_joints)
-    loss = loss / iter_size
-    return loss, loss_heatmaps, loss_joints
-
 def calculate_loss_JORNet_only_joints(loss_func, output, target_heatmaps, target_joints, joint_ixs,
                           weights_heatmaps_loss, weights_joints_loss, iter_size):
     loss_joints = 0
@@ -64,6 +55,17 @@ def calculate_loss_JORNet_only_joints(loss_func, output, target_heatmaps, target
         loss_joints_sub = euclidean_loss(output[loss_ix + 4], target_joints)
         loss_joints += loss_joints_sub
     return loss_joints, loss_joints - loss_joints, loss_joints
+
+def calculate_subloss_JORNet(loss_func, output_hm, output_j, target_heatmaps, target_joints,
+                             joint_ixs, weight_heatmaps_loss, weight_joints_loss, iter_size):
+    loss_heatmaps = 0
+    for joint_ix in joint_ixs:
+        loss_heatmaps += loss_func(output_hm[:, joint_ix, :, :], target_heatmaps[:, joint_ix, :, :])
+    loss_heatmaps /= iter_size
+    loss_joints = euclidean_loss(output_j, target_joints)
+    loss_joints /= iter_size
+    loss = (weight_heatmaps_loss * loss_heatmaps) + (weight_joints_loss * loss_joints)
+    return loss, loss_heatmaps, loss_joints
 
 def calculate_loss_JORNet(loss_func, output, target_heatmaps, target_joints, joint_ixs,
                           weights_heatmaps_loss, weights_joints_loss, iter_size):
