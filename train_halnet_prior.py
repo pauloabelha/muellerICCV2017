@@ -51,6 +51,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
         if train_vars['use_cuda']:
             data = data.cuda()
             target_heatmaps = target_heatmaps.cuda()
+            target_prior = target_prior.cuda()
         # visualize if debugging
         # get model output
         output = model(data)
