@@ -141,7 +141,21 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, epoch, total_loss, train_vars, control_vars)
-
+                aa1 = target_joints[0].data.cpu().numpy().reshape((21, 3))
+                aa2 = output[7][0].data.cpu().numpy().reshape((21, 3))
+                output_joint_loss = np.sum(np.abs(aa1 - aa2)) / 63
+                msg = ''
+                msg += print_verbose(
+                    "-------------------------------------------------------------------------------------------",
+                    verbose) + "\n"
+                msg += print_verbose('\tJoint Coord Avg Loss: ' +
+                                     str(output_joint_loss), control_vars['verbose'] + '\n')
+                msg += print_verbose(
+                    "-------------------------------------------------------------------------------------------",
+                    verbose) + "\n"
+                if not control_vars['output_filepath'] == '':
+                    with open(control_vars['output_filepath'], 'a') as f:
+                        f.write(msg + '\n')
             if control_vars['curr_iter'] % control_vars['log_interval_valid'] == 0:
                 print_verbose("\nSaving model and checkpoint model for validation", verbose)
                 checkpoint_model_dict = {
@@ -154,10 +168,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                                         filename=train_vars['checkpoint_filenamebase'] + 'for_valid_' +
                                                  str(control_vars['curr_iter']) + '.pth.tar')
 
-            aa1 = target_joints[0].data.cpu().numpy().reshape((21, 3))
-            aa2 = output[7][0].data.cpu().numpy().reshape((21, 3))
-            output_joint_loss = np.sum(np.abs(aa1 - aa2)) / 63
-            print('\nOutput Joint Avg Loss: ' + str(output_joint_loss))
+
 
             # print time lapse
             prefix = 'Training (Epoch #' + str(epoch) + ' ' + str(control_vars['curr_epoch_iter']) + '/' +\
