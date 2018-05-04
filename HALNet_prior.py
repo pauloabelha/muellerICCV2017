@@ -46,7 +46,7 @@ class HALNet_prior(HALNet_class):
         out_prior = self.main_loss_deconv_prior1(out_prior)
         out_prior = out_prior.view((out_prior.shape[0], out_prior.shape[2], out_prior.shape[3]))
         if self.cross_entropy:
-            out_prior = cudafy(self.softmax_1d(out_prior))
+            out_prior = cudafy(self.softmax_1d(out_prior), self.use_cuda)
         return out_prior
 
     def forward(self, x):
