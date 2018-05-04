@@ -149,7 +149,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                     "-------------------------------------------------------------------------------------------",
                     verbose) + "\n"
                 msg += print_verbose('\tJoint Coord Avg Loss: ' +
-                                     str(output_joint_loss), control_vars['verbose'] + '\n')
+                                     str(output_joint_loss) + '\n', control_vars['verbose'])
                 msg += print_verbose(
                     "-------------------------------------------------------------------------------------------",
                     verbose) + "\n"
