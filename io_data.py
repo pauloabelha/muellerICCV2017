@@ -439,7 +439,7 @@ class SynthHandsDataset_prior(SynthHandsDataset):
         data, labels = _get_data_labels(self.dataset_folder, idx, self.filenamebases,
                                 self.heatmap_res, self.joint_ixs, flag_crop_hand=self.crop_hand)
         labels_list = list(labels)
-        target_joints = labels[1].data.numpy()
+        target_joints = labels[1].numpy()
         joint_posterior = _get_joints_dist_posterior(target_joints)
         labels_list.append(joint_posterior)
         labels = tuple(labels_list)
