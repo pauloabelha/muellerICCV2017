@@ -8,7 +8,27 @@ filepath_jornet = root_folder + 'handtracking/' + 'output_JORNet_1745897270.txt'
 mean_loss_prefix_jornet = 'Mean loss for last 100 iterations (average total loss): '
 mean_loss_prefix_halnet = 'Mean loss for last 10 iterations (average total loss): '
 prior_loss_prefix = 'Mean loss (prior) for last 10 iterations (average total loss): '
+mean_joints_loss_prefix_jornet = 'Mean joints loss for last 100 iterations (average total joints loss): '
+mean_heatmap_loss_prefix_jornet = 'Mean heatmaps loss for last 100 iterations (average total heatmaps loss): '
+
 iter_prefix = 'Training (Epoch #'
+joint_loss_prefix = '\tJoint Coord Avg Loss: '
+
+mean_losses = []
+ix = 0
+with open(filepath_jornet) as fp:
+    for line in fp:
+        if mean_joints_loss_prefix_jornet in line:
+            mean_loss = float(line[len(mean_joints_loss_prefix_jornet):])
+            mean_losses.append(mean_loss)
+            print(mean_loss)
+            ix += 1
+        if iter_prefix in line:
+            print(line)
+
+plt.plot(mean_losses)
+plt.ylabel('JORNet: Mean joints loss ')
+plt.show()
 
 mean_losses = []
 ix = 0
@@ -23,7 +43,7 @@ with open(filepath_jornet) as fp:
             print(line)
 
 plt.plot(mean_losses)
-plt.ylabel('Mean losses (joint pair dist)')
+plt.ylabel('JORNet: Mean losses (joint pair dist)')
 plt.show()
 
 

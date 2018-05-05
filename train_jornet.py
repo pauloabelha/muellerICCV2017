@@ -29,6 +29,7 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
                   str(batch_idx+1) + "/" + str(control_vars['iter_size']), verbose, n_tabs=0, erase_line=True)
         # check if arrived at iter to start
         if control_vars['curr_epoch_iter'] < control_vars['start_iter_mod']:
+            control_vars['curr_epoch_iter'] = control_vars['start_iter_mod']
             msg = ''
             if batch_idx % control_vars['iter_size'] == 0:
                 msg += print_verbose("\rGoing through iterations to arrive at last one saved... " +
@@ -146,14 +147,14 @@ def train(train_loader, model, optimizer, train_vars, control_vars, verbose=True
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, epoch, total_loss, train_vars, control_vars)
-                aa1 = target_joints[0].data.cpu().numpy().reshape((21, 3))
-                aa2 = output[7][0].data.cpu().numpy().reshape((21, 3))
+                aa1 = target_joints[0].data.cpu().numpy()
+                aa2 = output[7][0].data.cpu().numpy()
                 output_joint_loss = np.sum(np.abs(aa1 - aa2)) / 63
                 msg = ''
                 msg += print_verbose(
                     "-------------------------------------------------------------------------------------------",
                     verbose) + "\n"
-                msg += print_verbose('\tJoint Coord Avg Loss: ' +
+                msg += print_verbose('\tJoint Coord Avg Loss for first image of current mini-batch: ' +
                                      str(output_joint_loss) + '\n', control_vars['verbose'])
                 msg += print_verbose(
                     "-------------------------------------------------------------------------------------------",
