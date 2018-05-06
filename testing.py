@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 root_folder = '/home/paulo/'
 filepath_prior = root_folder + 'output_HALNet_prior_1804790995.txt'
 filepath = root_folder + 'output_HALNet_1345115866.txt'
-filepath_jornet = root_folder + 'handtracking/' + 'output_JORNet_1745897270.txt'
+filepath_jornet = root_folder + 'output_JORNet_1716400149.txt'
 
-mean_loss_prefix_jornet = 'Mean loss for last 100 iterations (average total loss): '
+mean_loss_prefix_jornet = 'Mean loss for last 10 iterations (average total loss): '
 mean_loss_prefix_halnet = 'Mean loss for last 10 iterations (average total loss): '
 prior_loss_prefix = 'Mean loss (prior) for last 10 iterations (average total loss): '
-mean_joints_loss_prefix_jornet = 'Mean joints loss for last 100 iterations (average total joints loss): '
-mean_heatmap_loss_prefix_jornet = 'Mean heatmaps loss for last 100 iterations (average total heatmaps loss): '
+mean_joints_loss_prefix_jornet = 'Mean joints loss for last 10 iterations (average total joints loss): '
+mean_heatmap_loss_prefix_jornet = 'Mean heatmaps loss for last 10 iterations (average total heatmaps loss): '
 
 iter_prefix = 'Training (Epoch #'
 joint_loss_prefix = '\tJoint Coord Avg Loss: '
