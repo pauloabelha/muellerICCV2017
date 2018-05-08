@@ -1,5 +1,5 @@
 import numpy as np
-import io_data
+import synthhands_handler
 
 DEPTH_INTR_MTX =     np.array([[475.62,     0.0,        311.125],
                                 [0.0,        475.62,     245.965],
@@ -26,7 +26,7 @@ def joint_color2depth(u, v, proj_const):
     :param depth_intr_mtx: depth camera intrinsic params
     :return: u and v of joint in pixel space
     '''
-    joint_uv = np.array([v, u, 1.0]).reshape((3,))
+    joint_uv = np.array([u, v, 1.0]).reshape((3,))
     joint_uv *= proj_const
     joint_depth = np.dot(DEPTH_INTR_MTX_INV, joint_uv)
     return joint_depth
@@ -49,8 +49,8 @@ def joint_depth2color(joint_depth, handroot=None):
         joint_pixel = [0, 0, joint_depth_z]
     else:
         joint_pixel /= joint_depth_z
-    v = int(joint_pixel[0])
-    u = int(joint_pixel[1])
+    u = int(joint_pixel[0])
+    v = int(joint_pixel[1])
     return u, v, joint_depth_z
 
 

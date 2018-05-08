@@ -1,6 +1,6 @@
 from debugger import print_verbose
 import argparse
-import io_data
+import synthhands_handler
 import os
 
 def initialize_train_vars(args):
@@ -77,9 +77,9 @@ def parse_args(model_class):
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
 
     model, optimizer, train_vars, train_control_vars = \
-        io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
-                                num_iter=100000, log_interval=10,
-                                log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+        synthhands_handler.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
+                                           num_iter=100000, log_interval=10,
+                                           log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
 
 
 

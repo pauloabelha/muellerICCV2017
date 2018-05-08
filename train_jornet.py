@@ -1,6 +1,6 @@
 import torch
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import trainer
 import time
 from magic import display_est_time_loop
@@ -198,12 +198,12 @@ model, optimizer, control_vars, train_vars = trainer.get_vars(model_class=JORNet
 if train_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-train_loader = io_data.get_SynthHands_trainloader(root_folder=train_vars['root_folder'],
-                                                  joint_ixs=model.joint_ixs,
-                                                  heatmap_res=(128, 128),
-                                              batch_size=control_vars['max_mem_batch'],
-                                              verbose=control_vars['verbose'],
-                                                  crop_hand=True)
+train_loader = synthhands_handler.get_SynthHands_trainloader(root_folder=train_vars['root_folder'],
+                                                             joint_ixs=model.joint_ixs,
+                                                             heatmap_res=(128, 128),
+                                                             batch_size=control_vars['max_mem_batch'],
+                                                             verbose=control_vars['verbose'],
+                                                             crop_hand=True)
 control_vars['num_batches'] = len(train_loader)
 control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
 

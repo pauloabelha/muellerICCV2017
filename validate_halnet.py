@@ -1,6 +1,6 @@
 import torch
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import trainer
 import validator
 import time
@@ -126,11 +126,11 @@ model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse
 if valid_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-valid_loader = io_data.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
-                                                  joint_ixs=model.joint_ixs,
-                                                  heatmap_res=(320, 240),
-                                              batch_size=control_vars['max_mem_batch'],
-                                              verbose=control_vars['verbose'])
+valid_loader = synthhands_handler.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
+                                                             joint_ixs=model.joint_ixs,
+                                                             heatmap_res=(320, 240),
+                                                             batch_size=control_vars['max_mem_batch'],
+                                                             verbose=control_vars['verbose'])
 control_vars['num_batches'] = len(valid_loader)
 control_vars['n_iter_per_epoch'] = int(len(valid_loader) / control_vars['iter_size'])
 control_vars['num_iter'] = len(valid_loader)

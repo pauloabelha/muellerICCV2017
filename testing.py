@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from dateutil.parser import parse
 
 root_folder = '/home/paulo/'
 filepath_prior = root_folder + 'output_HALNet_prior_1804790995.txt'
@@ -11,8 +12,26 @@ prior_loss_prefix = 'Mean loss (prior) for last 10 iterations (average total los
 mean_joints_loss_prefix_jornet = 'Mean joints loss for last 10 iterations (average total joints loss): '
 mean_heatmap_loss_prefix_jornet = 'Mean heatmaps loss for last 10 iterations (average total heatmaps loss): '
 
+time_prefix = 'Time: '
+
 iter_prefix = 'Training (Epoch #'
 joint_loss_prefix = '\tJoint Coord Avg Loss: '
+
+mean_losses = []
+ix = 0
+times = []
+with open(filepath_jornet) as fp:
+    for line in fp:
+        if time_prefix in line:
+            time_str = line[6:]
+            aa = parse(time_str)
+            times.append(aa)
+            print(aa)
+            ix += 1
+        if iter_prefix in line:
+            print(line)
+
+bb = times[-1] - times[0]
 
 mean_losses = []
 ix = 0
@@ -34,8 +53,8 @@ mean_losses = []
 ix = 0
 with open(filepath_jornet) as fp:
     for line in fp:
-        if mean_loss_prefix_jornet in line:
-            mean_loss = float(line[len(mean_loss_prefix_jornet):])
+        if mean_heatmap_loss_prefix_jornet in line:
+            mean_loss = float(line[len(mean_heatmap_loss_prefix_jornet):])
             mean_losses.append(mean_loss)
             print(mean_loss)
             ix += 1
@@ -43,7 +62,7 @@ with open(filepath_jornet) as fp:
             print(line)
 
 plt.plot(mean_losses)
-plt.ylabel('JORNet: Mean losses (joint pair dist)')
+plt.ylabel('JORNet: Mean losses (heatmaps)')
 plt.show()
 
 

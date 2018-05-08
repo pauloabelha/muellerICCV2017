@@ -3,7 +3,7 @@ import JORNet
 import optimizers as my_optimizers
 import torch
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import numpy as np
 import trainer
 import time
@@ -69,9 +69,9 @@ if args.checkpoint_filepath == '':
 else:
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
     jornet, optimizer, train_vars, control_vars =\
-        io_data.load_checkpoint(filename=args.checkpoint_filepath, model_class=JORNet.JORNet,
-                                num_iter=100000, log_interval=10,
-                                log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+        synthhands_handler.load_checkpoint(filename=args.checkpoint_filepath, model_class=JORNet.JORNet,
+                                           num_iter=100000, log_interval=10,
+                                           log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
 
 def train(model, optimizer, train_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -240,9 +240,9 @@ def train(model, optimizer, train_vars, control_vars, verbose=True):
     return train_vars, control_vars
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-train_loader = io_data.get_SynthHands_trainloader(joint_ixs=jornet.joint_ixs,
-                                              batch_size=args.max_mem_batch,
-                                              verbose=args.verbose)
+train_loader = synthhands_handler.get_SynthHands_trainloader(joint_ixs=jornet.joint_ixs,
+                                                             batch_size=args.max_mem_batch,
+                                                             verbose=args.verbose)
 control_vars['num_batches'] = len(train_loader)
 control_vars['n_iter_per_epoch'] = int(len(train_loader) / control_vars['iter_size'])
 

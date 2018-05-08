@@ -1,4 +1,4 @@
-import io_data
+import synthhands_handler
 from scipy.spatial.distance import pdist, squareform
 import numpy as np
 import pickle
@@ -17,11 +17,11 @@ if load:
 
 
 
-full_loader = io_data.get_SynthHands_fullloader(root_folder=root_folder,
-                                                 joint_ixs=range(21),
-                                                 heatmap_res=(640, 480),
-                                                 batch_size=1,
-                                                 verbose=True)
+full_loader = synthhands_handler.get_SynthHands_fullloader(root_folder=root_folder,
+                                                           joint_ixs=range(21),
+                                                           heatmap_res=(640, 480),
+                                                           batch_size=1,
+                                                           verbose=True)
 
 min_dist = 1e10
 max_dist = -1

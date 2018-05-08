@@ -1,5 +1,5 @@
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
@@ -147,8 +147,8 @@ def show_hist_quant_results(results, xlabel='', ylabel='', title=''):
     plt.grid(True)
     plt.show()
 
-model, optimizer, train_vars, control_vars = io_data.load_checkpoint(filename='trained_halnet_log_.pth.tar',
-                                                                      model_class=JORNet.JORNet)
+model, optimizer, train_vars, control_vars = synthhands_handler.load_checkpoint(filename='trained_halnet_log_.pth.tar',
+                                                                                model_class=JORNet.JORNet)
 START_ITER = control_vars['curr_iter'] + 1
 
 print("Validating model that was trained for " + str(control_vars['curr_iter']) + " iterations")
@@ -168,9 +168,9 @@ if DEBUGGING_VISUALLY:
     plt.legend(handles=plot_handles)
     plt.show()
 
-valid_loader = io_data.get_SynthHands_validloader(joint_ixs=model.joint_ixs,
-                                              batch_size=MAX_MEM_BATCH_SIZE,
-                                              verbose=VERBOSE)
+valid_loader = synthhands_handler.get_SynthHands_validloader(joint_ixs=model.joint_ixs,
+                                                             batch_size=MAX_MEM_BATCH_SIZE,
+                                                             verbose=VERBOSE)
 model.eval()
 losses, pixel_losses, pixel_losses_sample = get_quant_results(
     model, valid_loader, results_filename='valid_results_' + str(START_ITER) + '.p')

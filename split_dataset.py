@@ -1,3 +1,3 @@
-import io_data
+import synthhands_handler
 
-io_data.save_dataset_split()
+synthhands_handler.save_dataset_split()

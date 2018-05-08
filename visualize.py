@@ -1,3 +1,6 @@
+import converter
+import io_image
+
 try:
     import cv2
 except ImportError:
@@ -14,7 +17,7 @@ except ImportError:
     print("WARNING: Ignoring matplotlib import error")
     pass
 import numpy as np
-import io_data
+import synthhands_handler
 import camera
 from torch.autograd import Variable
 import torch
@@ -24,6 +27,21 @@ import matplotlib.patches as mpatches
 import math
 import converter as conv
 from mpl_toolkits.mplot3d import axes3d, Axes3D #<-- Note the capitalization!
+
+
+    #data_img_RGB = conv.numpy_to_plottable_rgb(data)
+        #fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
+        #visualize.plot_joints(joints_colorspace=labels_colorspace, num_joints=len(joint_ixs), fig=fig)
+        #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_' + 'orig')
+        #visualize.show()
+        #data, crop_coords, labels_heatmaps, labels_colorspace =\
+        #    crop_image_get_labels(data, labels_colorspace, joint_ixs)
+        #data_img_RGB = conv.numpy_to_plottable_rgb(data)
+        #fig = visualize.plot_img_RGB(data_img_RGB, title=filenamebase)
+        #visualize.plot_3D_joints(joints_vec=labels_jointvec)
+        #visualize.plot_joints(joints_colorspace=labels_colorspace, fig=fig)
+        #visualize.show()
+
 
 def save_graph_pytorch_model(model, model_input_shape, folder='', modelname='model', plot=False):
     x = Variable(torch.randn(model_input_shape), requires_grad=True)
@@ -87,11 +105,11 @@ def show_me_example(example_ix_str):
         :return: image of first example in dataset (also plot it)
         '''
 
-    image = io_data._read_RGB_image(
+    image = io_image._read_RGB_image(
         "/home/paulo/synthhands/example_data/01/00000" +
         example_ix_str + "_color_on_depth.png")
 
-    joint_label = io_data._read_label(
+    joint_label = synthhands_handler._read_label(
         "/home/paulo/synthhands/example_data/01/00000" +
         example_ix_str + "_joint_pos.txt")
 
@@ -119,7 +137,7 @@ def show_dataset_example_with_joints(dataset, example_ix=0):
     print("\t" + str(example_ix+1) + " - " + img_title)
     # deal with image
     example_data, example_label = dataset[example_ix]
-    final_image = io_data.convert_torch_dataimage_to_canonical(example_data)
+    final_image = converter.convert_torch_dataimage_to_canonical(example_data)
     # deal with label
     for i in range(20):
         joint_uv = dataset.get_colorspace_joint_of_example_ix(example_ix, i)
@@ -133,7 +151,7 @@ def show_dataset_example_with_joints(dataset, example_ix=0):
     show_nparray_with_matplotlib(final_image, img_title=img_title)
 
 def show_data_as_image(example_data):
-    data_image = io_data.convert_torch_dataimage_to_canonical(example_data)
+    data_image = converter.convert_torch_dataimage_to_canonical(example_data)
     plt.imshow(data_image)
     plt.show()
 
@@ -142,11 +160,11 @@ def show_halnet_data_as_image(dataset, example_ix=0):
     show_data_as_image(example_data)
 
 def show_halnet_output_as_heatmap(heatmap, image=None, img_title=''):
-    heatmap = io_data.convert_torch_targetheatmap_to_canonical(heatmap)
+    heatmap = converter.convert_torch_targetheatmap_to_canonical(heatmap)
     heatmap = heatmap.swapaxes(0, 1)
     plt.imshow(heatmap, cmap='viridis', interpolation='nearest')
     if not image is None:
-        image = io_data.convert_torch_dataimage_to_canonical(image)
+        image = converter.convert_torch_dataimage_to_canonical(image)
         image = image.swapaxes(0, 1)
         plt.imshow(image)
         plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')

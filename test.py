@@ -1,5 +1,7 @@
 import sys
-import io_data
+
+import io_image
+import synthhands_handler
 import numpy as np
 
 
@@ -15,7 +17,7 @@ image_filepath = sys.argv[1]
 
 module_name = sys.argv[2]
 
-image = io_data._read_RGB_image(image_filepath, new_res=(240, 320), module_name=module_name)
+image = io_image._read_RGB_image(image_filepath, new_res=(240, 320), module_name=module_name)
 
 print(image.shape)
 

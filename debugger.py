@@ -1,6 +1,8 @@
 import numpy as np
 import math
-import io_data
+
+import converter
+import synthhands_handler
 import visualize
 import probs
 try:
@@ -31,9 +33,9 @@ def show_target_and_output_to_image_info(data, target_heatmaps, output):
             heatmap = output_heatmap_example1
             image = data.data.cpu().numpy()[BATCH_IDX]
             img_title = 'Joint ' + str(joint_ix)
-            heatmap = io_data.convert_torch_targetheatmap_to_canonical(heatmap)
+            heatmap = converter.convert_torch_targetheatmap_to_canonical(heatmap)
             heatmap = heatmap.swapaxes(0, 1)
-            image = io_data.convert_torch_dataimage_to_canonical(image)
+            image = converter.convert_torch_dataimage_to_canonical(image)
             image = image.swapaxes(0, 1)
             fig.add_subplot(rows, cols, joint_ix + 1)
             plt.imshow(image)

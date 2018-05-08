@@ -1,5 +1,7 @@
 import sys
-import io_data
+
+import io_image
+import synthhands_handler
 import numpy as np
 try:
     from matplotlib import pyplot as plt
@@ -28,7 +30,7 @@ def imcrop(crop_res, heatmap_root_joint, max_heatmap, depth_at_max, image):
     crop[3, :, :] /= depth_at_max
     crop = crop.swapaxes(0, 1)
     crop = crop.swapaxes(1, 2)
-    crop = io_data.change_res_image(crop[:, :, 0:3], crop_res)
+    crop = io_image.change_res_image(crop[:, :, 0:3], crop_res)
     return crop
 
 def imcrop2(joints_uv, image_rgbd, crop_res):
@@ -43,7 +45,7 @@ def imcrop2(joints_uv, image_rgbd, crop_res):
     crop = image_rgbd[:, u0:u1, v0:v1]
     crop = crop.swapaxes(0, 1)
     crop = crop.swapaxes(1, 2)
-    crop = io_data.change_res_image(crop[:, :, 0:3], crop_res)
+    crop = io_image.change_res_image(crop[:, :, 0:3], crop_res)
     plt.imshow(crop.astype(int))
     plt.show()
     return crop

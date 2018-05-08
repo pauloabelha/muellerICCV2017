@@ -1,5 +1,5 @@
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
@@ -130,8 +130,8 @@ def show_hist_quant_results(results, xlabel='', ylabel='', title=''):
 
 valid_filenames = get_validation_models_filenames()
 valid_dict = {}
-valid_loader = io_data.get_HALNet_validloader(batch_size=MAX_MEM_BATCH_SIZE, verbose=VERBOSE)
-halnet_dataset = io_data.SynthHandsHALNetValidDataset()
+valid_loader = synthhands_handler.get_HALNet_validloader(batch_size=MAX_MEM_BATCH_SIZE, verbose=VERBOSE)
+halnet_dataset = synthhands_handler.SynthHandsHALNetValidDataset()
 print("Max number of validation batches: " + str(MAX_N_VALID_BATCHES))
 
 sorted_n_iters = []
@@ -151,7 +151,7 @@ for n_iter in sorted_n_iters:
     pixel_losses_sample_dict = {}
     n_valid_iter = int(valid_filename.split('_')[-1].split('.')[0])
     model, optimizer, trained_dict = \
-        io_data.load_checkpoint(filename=valid_filename)
+        synthhands_handler.load_checkpoint(filename=valid_filename)
     valid_model = {}
     valid_model['model'] = model
     valid_model['optimizer'] = optimizer

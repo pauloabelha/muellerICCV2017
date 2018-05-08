@@ -1,11 +1,11 @@
-import io_data
+import synthhands_handler
 import visualize
 
 NUM_EXAMPLES = 5
 
-halnet_train_set = io_data.SynthHandsHALNetTrainDataset()
-halnet_valid_set = io_data.SynthHandsHALNetValidDataset()
-halnet_test_set = io_data.SynthHandsHALNetTestDataset()
+halnet_train_set = synthhands_handler.SynthHandsHALNetTrainDataset()
+halnet_valid_set = synthhands_handler.SynthHandsHALNetValidDataset()
+halnet_test_set = synthhands_handler.SynthHandsHALNetTestDataset()
 
 print("Checking " + str(NUM_EXAMPLES) + " examples from the training set")
 for i in range(NUM_EXAMPLES):

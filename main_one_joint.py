@@ -1,8 +1,9 @@
 import HALNet
+import converter
 import optimizers as my_optimizers
 import torch
 from torch.autograd import Variable
-import io_data
+import synthhands_handler
 import torch.nn.functional as F
 import numpy as np
 import resnet
@@ -128,7 +129,7 @@ if LOAD_MODEL_FILENAME == '':
     optimizer = my_optimizers.get_adadelta_halnet(halnet)
 else:
     print("Loading model and optimizer from file: " + LOAD_MODEL_FILENAME)
-    halnet, optimizer, train_dict = io_data.load_checkpoint(LOAD_MODEL_FILENAME)
+    halnet, optimizer, train_dict = synthhands_handler.load_checkpoint(LOAD_MODEL_FILENAME)
     START_EPOCH = train_dict['epoch']
     START_ITER = train_dict['curr_iter'] + 2
     losses = train_dict['losses']
@@ -171,8 +172,8 @@ def pixel_stdev(norm_heatmap):
 def print_target_info(target):
     if len(target.shape) == 4:
         target = target[0, :, :, :]
-    target = io_data.convert_torch_dataoutput_to_canonical(target.data.numpy()[0])
-    norm_target = io_data.normalize_output(target)
+    target = converter.convert_torch_dataoutput_to_canonical(target.data.numpy()[0])
+    norm_target = converter.normalize_output(target)
     # get joint inference from max of heatmap
     max_heatmap = np.unravel_index(np.argmax(norm_target, axis=None), norm_target.shape)
     print("Heamap max: " + str(max_heatmap))
@@ -353,7 +354,7 @@ def train(START_ITER_MOD, NUM_ITER_TO_TRAIN, model, optimizer, train_loader, epo
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-train_loader = io_data.get_HALNet_trainloader(batch_size=MAX_MEM_BATCH_SIZE, verbose=VERBOSE)
+train_loader = synthhands_handler.get_HALNet_trainloader(batch_size=MAX_MEM_BATCH_SIZE, verbose=VERBOSE)
 
 tot_iter = int(len(train_loader) / int(BATCH_SIZE/MAX_MEM_BATCH_SIZE))
 START_ITER_MOD = START_ITER % tot_iter
