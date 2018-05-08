@@ -242,8 +242,8 @@ class SynthHandsDataset(Dataset):
     heatmap_res = None
     crop_hand = False
 
-    def __init__(self, root_folder, joint_ixs, type, heatmap_res, crop_hand):
-        self.type = type
+    def __init__(self, root_folder, type_, joint_ixs=range(21), heatmap_res=(320, 240), crop_hand=False):
+        self.type = type_
         self.joint_ixs = joint_ixs
         dataset_split_files = load_dataset_split(root_folder=root_folder)
         if self.type == 'full':
@@ -316,21 +316,13 @@ class SynthHandsFullDataset(SynthHandsDataset):
     type = 'full'
 
 def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, type, batch_size=1):
+    list_of_types = ['prior', 'train', 'test', 'valid', 'full']
     if verbose:
         print("Loading synthhands " + type + " dataset...")
     dataset_class = SynthHandsDataset
-    if dataset_type == 'prior':
-        dataset_class = SynthHandsDataset_prior
-    if type == 'train':
-        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
-    elif type == 'valid':
-        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
-    elif type == 'test':
-        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
-    elif type == 'full':
-        dataset = dataset_class(root_folder, joint_ixs, type, heatmap_res, crop_hand)
-    else:
-        raise BaseException("Type " + type + " does not exist. Valid types are (train, valid, test)")
+    if not type in list_of_types:
+        raise BaseException('Type ' + type + ' does not exist. Valid types are: ' + str(list_of_types))
+    dataset = dataset_class(root_folder, type, joint_ixs, heatmap_res, crop_hand)
     dataset_loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
@@ -349,14 +341,14 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, cr
             print("\tLabel prior shape (pair * dist): " + str(label_prior.shape))
     return dataset_loader
 
-def get_SynthHands_trainloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+def get_SynthHands_trainloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
     return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'train', batch_size)
 
-def get_SynthHands_validloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+def get_SynthHands_validloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
     return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'valid', batch_size)
 
-def get_SynthHands_testloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+def get_SynthHands_testloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
     return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'test', batch_size)
 
-def get_SynthHands_fullloader(root_folder, joint_ixs, heatmap_res, dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
+def get_SynthHands_fullloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
     return _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, 'full', batch_size)

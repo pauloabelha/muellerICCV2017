@@ -131,9 +131,9 @@ def show_me_an_example():
     return show_me_example('000')
 
 def show_dataset_example_with_joints(dataset, example_ix=0):
-    filenamebase_keys = dataset.filenamebase_keys
+    filenamebases = dataset.filenamebases
     img_title = "File namebase: " + dataset.color_on_depth_images_dict[
-        filenamebase_keys[example_ix]]
+        filenamebases[example_ix]]
     print("\t" + str(example_ix+1) + " - " + img_title)
     # deal with image
     example_data, example_label = dataset[example_ix]
@@ -147,7 +147,7 @@ def show_dataset_example_with_joints(dataset, example_ix=0):
             add_squares_for_joint_in_color_space(
                 final_image, joint_uv, color=[i*10, 100-i*5, 100+i*5])
     img_title = "File namebase: " + dataset.color_on_depth_images_dict[
-                                               filenamebase_keys[example_ix]]
+        filenamebases[example_ix]]
     show_nparray_with_matplotlib(final_image, img_title=img_title)
 
 def show_data_as_image(example_data):
@@ -264,9 +264,10 @@ def plot_image(data, title='', fig=None):
         plt.title(title)
     return fig
 
-def plot_image_and_heatmap(heatmap, data, title='', fig=None):
-    plot_image(data, title='')
-    plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
+def plot_image_and_heatmap(heatmap, data, title=''):
+    data_img_RGB = conv.numpy_to_plottable_rgb(data)
+    plot_image(data_img_RGB.swapaxes(0, 1), title=title)
+    plt.imshow(255 * heatmap.swapaxes(0, 1), alpha=0.6, cmap='hot')
 
 def show():
     plt.show()
