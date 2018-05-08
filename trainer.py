@@ -438,7 +438,7 @@ def get_vars(model_class):
     return model, optimizer, train_vars
 
 
-def run_until_curr_iter(train_vars):
+def run_until_curr_iter(batch_idx, train_vars):
     if train_vars['curr_epoch_iter'] < train_vars['start_iter_mod']:
         msg = ''
         if batch_idx % train_vars['iter_size'] == 0:
@@ -447,7 +447,7 @@ def run_until_curr_iter(train_vars):
                                      'start_iter_mod'])) + "% of " +
                                  str(train_vars['start_iter_mod']) + " iterations (" +
                                  str(train_vars['curr_epoch_iter']) + "/" + str(train_vars['start_iter_mod']) + ")",
-                                 verbose, n_tabs=0, erase_line=True)
+                                 train_vars['verbose'], n_tabs=0, erase_line=True)
             train_vars['curr_epoch_iter'] += 1
             train_vars['curr_iter'] += 1
             train_vars['curr_epoch_iter'] += 1

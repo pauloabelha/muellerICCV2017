@@ -18,7 +18,7 @@ def train(train_loader, model, optimizer, train_vars):
             print_verbose("\rPerforming first iteration; current mini-batch: " +
                   str(batch_idx+1) + "/" + str(train_vars['iter_size']), verbose, n_tabs=0, erase_line=True)
         # check if arrived at iter to start
-        arrived_curr_iter, train_vars = run_until_curr_iter(train_vars)
+        arrived_curr_iter, train_vars = run_until_curr_iter(batch_idx, train_vars)
         if not arrived_curr_iter:
             continue
         # save checkpoint after final iteration
