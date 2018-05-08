@@ -10,9 +10,6 @@ import synthhands_handler
 from random import randint
 import datetime
 
-from train_halnet import model, optimizer
-
-
 def load_checkpoint(filename, model_class, use_cuda=True):
     torch_file = torch.load(filename)
     model_state_dict = torch_file['model_state_dict']
