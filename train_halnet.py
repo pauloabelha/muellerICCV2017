@@ -7,39 +7,7 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from HALNet import HALNet
-
-def run_until_curr_iter(train_vars):
-    if train_vars['curr_epoch_iter'] < train_vars['start_iter_mod']:
-        msg = ''
-        if batch_idx % train_vars['iter_size'] == 0:
-            msg += print_verbose("\rGoing through iterations to arrive at last one saved... " +
-                                 str(int(train_vars['curr_epoch_iter'] * 100.0 / train_vars[
-                                     'start_iter_mod'])) + "% of " +
-                                 str(train_vars['start_iter_mod']) + " iterations (" +
-                                 str(train_vars['curr_epoch_iter']) + "/" + str(train_vars['start_iter_mod']) + ")",
-                                 verbose, n_tabs=0, erase_line=True)
-            train_vars['curr_epoch_iter'] += 1
-            train_vars['curr_iter'] += 1
-            train_vars['curr_epoch_iter'] += 1
-        if not train_vars['output_filepath'] == '':
-            with open(train_vars['output_filepath'], 'a') as f:
-                f.write(msg + '\n')
-        return False, train_vars
-    return True, train_vars
-
-def save_final_checkpoint(train_vars):
-    print_verbose("\nReached final number of iterations: " + str(train_vars['num_iter']), train_vars['verbose'])
-    print_verbose("\tSaving final model checkpoint...", train_vars['verbose'])
-    final_model_dict = {
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'train_vars': train_vars,
-    }
-    trainer.save_checkpoint(final_model_dict,
-                            filename=train_vars['checkpoint_filenamebase'] +
-                                     'final' + str(train_vars['num_iter']) + '.pth.tar')
-    train_vars['done_training'] = True
-    return train_vars
+from trainer import run_until_curr_iter, save_final_checkpoint
 
 def train(train_loader, model, optimizer, train_vars):
     verbose = train_vars['verbose']
