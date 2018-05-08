@@ -27,7 +27,7 @@ def run_until_curr_iter(train_vars):
         return False, train_vars
     return True, train_vars
 
-def save_final_checkpoint():
+def save_final_checkpoint(train_vars):
     print_verbose("\nReached final number of iterations: " + str(train_vars['num_iter']), train_vars['verbose'])
     print_verbose("\tSaving final model checkpoint...", train_vars['verbose'])
     final_model_dict = {
@@ -54,8 +54,8 @@ def train(train_loader, model, optimizer, train_vars):
         if not arrived_curr_iter:
             continue
         # save checkpoint after final iteration
-        if train_vars['curr_iter'] == train_vars['num_iter']:
-            save_final_checkpoint()
+        if train_vars['curr_iter'] - 1 == train_vars['num_iter']:
+            train_vars = save_final_checkpoint(train_vars)
             break
         # start time counter
         start = time.time()
@@ -113,7 +113,7 @@ def train(train_loader, model, optimizer, train_vars):
                 train_vars['best_model_dict'] = {
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'train_vars': train_vars,
+                    'train_vars': train_vars
                 }
             # log checkpoint
             if train_vars['curr_iter'] % train_vars['log_interval'] == 0:
@@ -144,6 +144,7 @@ def train(train_loader, model, optimizer, train_vars):
             train_vars['curr_iter'] += 1
             train_vars['start_iter'] = train_vars['curr_iter'] + 1
             train_vars['curr_epoch_iter'] += 1
+    return train_vars
 
 
 model, optimizer, train_vars = trainer.get_vars(model_class=HALNet)
@@ -177,7 +178,7 @@ for epoch in range(train_vars['num_epochs']):
     train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
     optimizer.zero_grad()
     # train model
-    train_vars,= train(train_loader, model, optimizer, train_vars)
+    train_vars = train(train_loader, model, optimizer, train_vars)
     if train_vars['done_training']:
         print_verbose("Done training.", train_vars['verbose'])
         break

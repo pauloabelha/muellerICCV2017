@@ -1,8 +1,6 @@
 import numpy as np
 import math
-
 import converter
-import synthhands_handler
 import visualize
 import probs
 try:

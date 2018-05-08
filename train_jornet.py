@@ -7,10 +7,7 @@ from magic import display_est_time_loop
 import losses as my_losses
 from debugger import print_verbose
 from JORNet import JORNet
-from halnet_crop import crop_batch_input_images
-from matplotlib import pyplot as plt
 import numpy as np
-import visualize
 
 def get_loss_weights(curr_iter):
     weights_heatmaps_loss = [0.5, 0.5, 0.5, 1.0]
