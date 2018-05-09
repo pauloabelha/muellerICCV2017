@@ -23,7 +23,7 @@ def train(train_loader, model, optimizer, train_vars):
             continue
         # save checkpoint after final iteration
         if train_vars['curr_iter'] - 1 == train_vars['num_iter']:
-            train_vars = save_final_checkpoint(train_vars)
+            train_vars = save_final_checkpoint(train_vars, model, optimizer)
             break
         # start time counter
         start = time.time()
@@ -135,12 +135,18 @@ trainer.print_header_info(model, train_loader, train_vars)
 model.train()
 train_vars['curr_iter'] = 1
 
+msg = ''
 for epoch in range(train_vars['num_epochs']):
     train_vars['curr_epoch_iter'] = 1
     if epoch + 1 < train_vars['start_epoch']:
-        print_verbose("Advancing through epochs: " + str(epoch + 1), train_vars['verbose'], erase_line=True)
+        msg += print_verbose("Advancing through epochs: " + str(epoch + 1), train_vars['verbose'], erase_line=True)
         train_vars['curr_iter'] += train_vars['n_iter_per_epoch']
+        if not train_vars['output_filepath'] == '':
+            with open(train_vars['output_filepath'], 'a') as f:
+                f.write(msg + '\n')
         continue
+    else:
+        msg = ''
     train_vars['total_loss'] = 0
     train_vars['total_pixel_loss'] = [0] * len(model.joint_ixs)
     train_vars['total_pixel_loss_sample'] = [0] * len(model.joint_ixs)
@@ -148,5 +154,8 @@ for epoch in range(train_vars['num_epochs']):
     # train model
     train_vars = train(train_loader, model, optimizer, train_vars)
     if train_vars['done_training']:
-        print_verbose("Done training.", train_vars['verbose'])
+        msg += print_verbose("Done training.", train_vars['verbose'])
+        if not train_vars['output_filepath'] == '':
+            with open(train_vars['output_filepath'], 'a') as f:
+                f.write(msg + '\n')
         break

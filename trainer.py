@@ -24,14 +24,27 @@ def load_checkpoint(filename, model_class, use_cuda=True):
     model = model_class(params_dict)
     model.load_state_dict(model_state_dict)
     optimizer_state_dict = torch_file['optimizer_state_dict']
-    optimizer = torch.optim.Adadelta(model.parameters())
+    optimizer = optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
     return model, optimizer, train_vars, train_vars
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
-    if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+def save_final_checkpoint(train_vars, model, optimizer):
+    msg = ''
+    msg += print_verbose("\nReached final number of iterations: " + str(train_vars['num_iter']), train_vars['verbose'])
+    msg += print_verbose("\tSaving final model checkpoint...", train_vars['verbose'])
+    if not train_vars['output_filepath'] == '':
+        with open(train_vars['output_filepath'], 'a') as f:
+            f.write(msg + '\n')
+    final_model_dict = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'train_vars': train_vars,
+    }
+    save_checkpoint(final_model_dict,
+                            filename=train_vars['checkpoint_filenamebase'] +
+                                     'final' + str(train_vars['num_iter']) + '.pth.tar')
+    train_vars['done_training'] = True
+    return train_vars
 
 # initialize control variables
 def initialize_train_vars(args):
@@ -432,6 +445,10 @@ def get_vars(model_class):
         output_split_name = train_vars['output_filepath'].split('.')
         train_vars['output_filepath'] = output_split_name[0] + '_' + str(model_class.__name__) + '_' +\
                                           str(RANDOM_ID) + '.' + output_split_name[1]
+    if model_class.__name__ == 'JORNet':
+        train_vars['crop_hand'] = True
+    else:
+        train_vars['crop_hand'] = False
     return model, optimizer, train_vars
 
 
@@ -455,16 +472,3 @@ def run_until_curr_iter(batch_idx, train_vars):
     return True, train_vars
 
 
-def save_final_checkpoint(train_vars):
-    print_verbose("\nReached final number of iterations: " + str(train_vars['num_iter']), train_vars['verbose'])
-    print_verbose("\tSaving final model checkpoint...", train_vars['verbose'])
-    final_model_dict = {
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'train_vars': train_vars,
-    }
-    trainer.save_checkpoint(final_model_dict,
-                            filename=train_vars['checkpoint_filenamebase'] +
-                                     'final' + str(train_vars['num_iter']) + '.pth.tar')
-    train_vars['done_training'] = True
-    return train_vars
