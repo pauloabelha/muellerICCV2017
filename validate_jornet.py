@@ -35,7 +35,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
         if valid_vars['use_cuda']:
             data = data.cuda()
+            target_joints = target_joints.cuda()
             target_heatmaps = target_heatmaps.cuda()
+            target_handroot = target_handroot.cuda()
         # visualize if debugging
         # get model output
         output = model(data)
@@ -61,9 +63,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         for i in range(control_vars['max_mem_batch']):
             filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
             filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
-            visualize.plot_image(data[i].data.numpy(), title=filenamebase)
-            target_joints_colorspace = camera.joints_depth2color(output[7][i].data.numpy().reshape((21, 3)),
-                                                                 target_handroot.data.numpy())
+            visualize.plot_image(data[i].data.cpu().numpy(), title=filenamebase)
+            target_joints_colorspace = camera.joints_depth2color(output[7][i].data.cpu().numpy().reshape((21, 3)),
+                                                                 target_handroot.data.cpu().numpy())
             #target_joints_colorspace = camera.joints_depth2color(target_joints.data.numpy().reshape((21, 3)), target_handroot.data.numpy())
             visualize.plot_3D_joints(target_joints_colorspace)
             #fig = visualize.create_fig()
@@ -82,8 +84,8 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
             visualize.show()
-            aa1 = target_joints[i].data.numpy().reshape((21, 3))
-            aa2 = output[7][i].data.numpy().reshape((21, 3))
+            aa1 = target_joints[i].data.cpu().numpy().reshape((21, 3))
+            aa2 = output[7][i].data.cpu().numpy().reshape((21, 3))
             print(np.sum(np.abs(aa1 - aa2)) / 63)
 
         #loss.backward()

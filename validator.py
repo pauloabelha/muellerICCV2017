@@ -1,7 +1,7 @@
 from debugger import print_verbose
 import argparse
-import synthhands_handler
 import os
+import trainer
 
 def initialize_train_vars(args):
     train_vars = {}
@@ -76,10 +76,8 @@ def parse_args(model_class):
 
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
 
-    model, optimizer, train_vars, train_control_vars = \
-        synthhands_handler.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
-                                           num_iter=100000, log_interval=10,
-                                           log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+    model, optimizer, valid_vars, train_control_vars = \
+        trainer.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class, use_cuda=True)
 
 
 
@@ -99,7 +97,6 @@ def parse_args(model_class):
     control_vars['num_epochs'] = 100
     control_vars['verbose'] = True
 
-    valid_vars['cross_entropy'] = train_vars['cross_entropy']
     if valid_vars['cross_entropy']:
         print_verbose("Using cross entropy loss", args.verbose)
 

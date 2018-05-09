@@ -24,7 +24,7 @@ def load_checkpoint(filename, model_class, use_cuda=True):
     model = model_class(params_dict)
     model.load_state_dict(model_state_dict)
     optimizer_state_dict = torch_file['optimizer_state_dict']
-    optimizer = optim.Adadelta(model.parameters())
+    optimizer = torch.optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
     return model, optimizer, train_vars, train_vars
 
