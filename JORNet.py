@@ -2,6 +2,7 @@ import HALNet as HALNet
 from HALNet import HALNet as HALNet_class
 import torch.nn as nn
 from magic import cudafy
+import numpy as np
 
 class JORNet(HALNet_class):
     innerprod1_size = 256 * 16 * 16
@@ -52,7 +53,6 @@ class JORNet(HALNet_class):
         out_intermed_hm1, out_intermed_hm2, out_intermed_hm3, conv4fout, \
         res3aout, res4aout, conv4eout = self.forward_subnet(x)
         out_intermed_hm_main = self.forward_main_loss(conv4fout)
-
         innerprod1_size = res3aout.shape[1] * res3aout.shape[2] * res3aout.shape[3]
         out_intermed_j1 = res3aout.view(-1, innerprod1_size)
         out_intermed_j1 = self.innerproduct1_joint1(out_intermed_j1)

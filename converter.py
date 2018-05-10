@@ -1,21 +1,33 @@
 import numpy as np
 
+def numpy_swap_cols(np_array):
+    np_array[:,[0, 1]] = np_array[:,[1, 0]]
+    return np_array
+
+def numpy_swap_cols(np_array, col_from, col_to):
+    np_array[:, [col_from, col_to]] = np_array[:, [col_to, col_from]]
+    return np_array
+
 def numpy_to_plottable_rgb(numpy_img):
-    channel_axis = 0
-    for i in numpy_img.shape:
-        if i == 3 or i == 4:
-            break
-        channel_axis += 1
-    if channel_axis == 0:
-        img = numpy_img.swapaxes(0, 1)
-        img = img.swapaxes(1, 2)
-    elif channel_axis == 1:
-        img = numpy_img.swapaxes(1, 2)
-    elif channel_axis == 2:
-        img = numpy_img
-    else:
-        return None
-    return img[:, :, 0:3].astype(int)
+    img = numpy_img
+    if len(numpy_img.shape) == 3:
+        channel_axis = 0
+        for i in numpy_img.shape:
+            if i == 3 or i == 4:
+                break
+            channel_axis += 1
+        if channel_axis == 0:
+            img = numpy_img.swapaxes(0, 1)
+            img = img.swapaxes(1, 2)
+        elif channel_axis == 1:
+            img = numpy_img.swapaxes(1, 2)
+        elif channel_axis == 2:
+            img = numpy_img
+        else:
+            return None
+        img = img[:, :, 0:3]
+    img = img.swapaxes(0, 1)
+    return img.astype(int)
 
 def batch_numpy_to_plottable_rgb(batch_numpy_img, batch_axis=0):
     if batch_axis == 0:

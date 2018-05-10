@@ -158,6 +158,7 @@ train_loader = synthhands_handler.get_SynthHands_trainloader(root_folder=train_v
                                                              batch_size=train_vars['max_mem_batch'],
                                                              verbose=train_vars['verbose'],
                                                              crop_hand=train_vars['crop_hand'])
+
 train_vars['num_batches'] = len(train_loader)
 train_vars['n_iter_per_epoch'] = int(len(train_loader) / train_vars['iter_size'])
 

@@ -7,6 +7,7 @@ from torch.utils.data.dataset import Dataset
 from converter import convert_color_space_label_to_heatmap
 from io_image import change_res_image, _read_RGB_image
 from scipy.spatial.distance import pdist, squareform
+import visualize
 
 DATASET_SPLIT_FILENAME = 'dataset_split_files.p'
 

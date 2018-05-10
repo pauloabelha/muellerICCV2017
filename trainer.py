@@ -14,7 +14,6 @@ def load_checkpoint(filename, model_class, use_cuda=True):
     torch_file = torch.load(filename)
     model_state_dict = torch_file['model_state_dict']
     train_vars = torch_file['train_vars']
-    train_vars = torch_file['train_vars']
     params_dict = {}
     params_dict['joint_ixs'] = train_vars['joint_ixs']
     params_dict['use_cuda'] = train_vars['use_cuda']
@@ -24,7 +23,7 @@ def load_checkpoint(filename, model_class, use_cuda=True):
     model = model_class(params_dict)
     model.load_state_dict(model_state_dict)
     optimizer_state_dict = torch_file['optimizer_state_dict']
-    optimizer = optim.Adadelta(model.parameters())
+    optimizer = torch.optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
     return model, optimizer, train_vars, train_vars
 
@@ -151,9 +150,7 @@ def parse_args(model_class, random_id=-1):
     else:
         print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
         model, optimizer, train_vars, train_vars = \
-            synthhands_handler.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class,
-                                               num_iter=100000, log_interval=10,
-                                               log_interval_valid=1000, batch_size=16, max_mem_batch=args.max_mem_batch)
+            load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class)
     if train_vars['use_cuda']:
         print_verbose("Using CUDA", args.verbose)
     else:

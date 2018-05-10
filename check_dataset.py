@@ -18,10 +18,14 @@ train_loader = synthhands_handler.get_SynthHands_trainloader(root_folder=args.ro
 
 print("Checking " + str(NUM_EXAMPLES) + " examples from the training set")
 for batch_idx, (data, target) in enumerate(train_loader):
+    filenamebase = train_loader.dataset.get_filenamebase(batch_idx)
     target_heatmaps, target_joints, target_roothand = target
     visualize.plot_image_and_heatmap(target_heatmaps[0][4].cpu().data.numpy(),
                                      data=data[0].cpu().data.numpy(),
-                                     title='Training set\n' + train_loader.dataset.get_filenamebase(batch_idx) + '\nImage + Heatmap(thumb tip)')
+                                     title='Training set\n' + filenamebase + '\nImage + Heatmap(thumb tip)')
+    visualize.show()
+    visualize.plot_joints_from_heatmaps(target_heatmaps[0].data.cpu().numpy(),
+                                        title='Joints: ' + filenamebase, data=data[0].data.cpu().numpy())
     visualize.show()
     if (batch_idx + 1) == args.num_examples:
         break

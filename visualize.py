@@ -182,6 +182,7 @@ def plot_joints(joints_colorspace, fig=None, show_legend=True, linewidth=4):
     if fig is None:
         fig = plt.figure()
     num_joints = joints_colorspace.shape[0]
+    joints_colorspace = conv.numpy_swap_cols(joints_colorspace, 0, 1)
     plt.plot(joints_colorspace[0, 1], joints_colorspace[0, 0], 'ro', color='C0')
     plt.plot(joints_colorspace[0:2, 1], joints_colorspace[0:2, 0], 'ro-', color='C0', linewidth=linewidth)
     joints_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Little']
@@ -265,9 +266,10 @@ def plot_image(data, title='', fig=None):
     return fig
 
 def plot_image_and_heatmap(heatmap, data, title=''):
-    data_img_RGB = conv.numpy_to_plottable_rgb(data)
-    plot_image(data_img_RGB.swapaxes(0, 1), title=title)
-    plt.imshow(255 * heatmap.swapaxes(0, 1), alpha=0.6, cmap='hot')
+    plot_image(data, title=title)
+    heatmap = np.exp(heatmap)
+    heatmap = heatmap.swapaxes(0, 1)
+    plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
 
 def show():
     plt.show()
