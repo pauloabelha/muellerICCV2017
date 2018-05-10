@@ -43,6 +43,8 @@ def train(train_loader, model, optimizer, train_vars):
         if train_vars['use_cuda']:
             data = data.cuda()
             target_heatmaps = target_heatmaps.cuda()
+            target_joints = target_joints.cuda()
+            target_joints_z = target_joints_z.cuda()
         # get model output
         output = model(data)
         # accumulate loss for sub-mini-batch
