@@ -19,6 +19,12 @@ def get_loss_weights(curr_iter):
         weights_joints_loss = [250, 250, 250, 2500]
     return weights_heatmaps_loss, weights_joints_loss
 
+def change_learning_rate(optimizer, lr, curr_iter):
+    if curr_iter > 45000:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+    return optimizer
+
 def train(train_loader, model, optimizer, train_vars):
     verbose = train_vars['verbose']
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -87,6 +93,8 @@ def train(train_loader, model, optimizer, train_vars):
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % train_vars['iter_size'] == 0
         if minibatch_completed:
+            # change learning rate to 0.01 after 45000 iterations
+            optimizer = change_learning_rate(optimizer, 0.01, train_vars['curr_iter'])
             # optimise for mini-batch
             optimizer.step()
             # clear optimiser
