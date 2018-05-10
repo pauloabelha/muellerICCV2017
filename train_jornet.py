@@ -9,6 +9,7 @@ from debugger import print_verbose
 from JORNet import JORNet
 from trainer import run_until_curr_iter, save_final_checkpoint
 import numpy as np
+import visualize
 
 def get_loss_weights(curr_iter):
     weights_heatmaps_loss = [0.5, 0.5, 0.5, 1.0]
@@ -65,6 +66,22 @@ def train(train_loader, model, optimizer, train_vars):
                 train_vars['total_pixel_loss_sample'], output[3], target_heatmaps, train_vars['batch_size'])
         else:
             train_vars['total_pixel_loss_sample'] = [-1] * len(model.joint_ixs)
+
+        '''
+        For debugging training
+        for i in range(train_vars['max_mem_batch']):
+            filenamebase_idx = (batch_idx * train_vars['max_mem_batch']) + i
+            filenamebase = train_loader.dataset.get_filenamebase(filenamebase_idx)
+            visualize.plot_joints_from_heatmaps(target_heatmaps[i].data.cpu().numpy(),
+                                                title='GT joints: ' + filenamebase, data=data[i].data.cpu().numpy())
+            visualize.plot_joints_from_heatmaps(output[3][i].data.cpu().numpy(),
+                                                title='Pred joints: ' + filenamebase, data=data[i].data.cpu().numpy())
+            visualize.plot_image_and_heatmap(output[3][i][4].data.numpy(),
+                                             data=data[i].data.numpy(),
+                                             title='Thumb tib heatmap: ' + filenamebase)
+            visualize.show()
+        '''
+
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % train_vars['iter_size'] == 0
         if minibatch_completed:
