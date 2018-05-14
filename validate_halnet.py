@@ -11,7 +11,7 @@ from HALNet import HALNet
 import visualize
 import converter as conv
 
-DEBUG_VISUALLY = False
+DEBUG_VISUALLY = True
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -48,17 +48,16 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
                 fig = visualize.create_fig()
                 #visualize.plot_joints_from_heatmaps(output[3][i].data.numpy(), fig=fig,
                 #                                    title=filenamebase, data=data[i].data.numpy())
-                visualize.plot_image_and_heatmap(output[3][i][8].data.numpy(),
-                                                 data=data[i].data.numpy(),
-                                                 title=filenamebase, fig=fig)
+                #visualize.plot_image_and_heatmap(output[3][i][8].data.numpy(),
+                #                                 data=data[i].data.numpy(),
+                #                                 title=filenamebase)
                 #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_heatmap')
 
-                #labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
-                #data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
-                #    io_data.crop_image_get_labels(data[i].data.numpy(), labels_colorspace, range(21))
-                #data_crop_img = conv.numpy_to_plottable_rgb(data_crop)
-                #visualize.plot_image(data_crop_img, title=filenamebase, fig=fig)
-                #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
+                labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
+                data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
+                    synthhands_handler.crop_image_get_labels(data[i].data.numpy(), labels_colorspace, range(21))
+                visualize.plot_image(data_crop, title=filenamebase, fig=fig)
+                visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop)
                 #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
                 visualize.show()
 

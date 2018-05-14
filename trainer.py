@@ -11,7 +11,14 @@ from random import randint
 import datetime
 
 def load_checkpoint(filename, model_class, use_cuda=True):
-    torch_file = torch.load(filename)
+    if use_cuda:
+        try:
+            torch_file = torch.load(filename)
+        except:
+            torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
+            use_cuda = False
+    else:
+        torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
     model_state_dict = torch_file['model_state_dict']
     train_vars = torch_file['train_vars']
     params_dict = {}

@@ -68,18 +68,21 @@ def parse_args(model_class):
     parser.add_argument('-r', dest='root_folder', default='', required=True, help='Root folder for dataset')
     parser.add_argument('--visual', dest='visual_debugging', action='store_true', default=False,
                         help='Whether to visually inspect results')
+    parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
+                        help='Whether to use cuda for training')
     args = parser.parse_args()
 
     control_vars, valid_vars = initialize_vars(args)
     control_vars['visual_debugging'] = args.visual_debugging
-    valid_vars['root_folder'] = args.root_folder
+
 
     print_verbose("Loading model and optimizer from file: " + args.checkpoint_filepath, args.verbose)
 
     model, optimizer, valid_vars, train_control_vars = \
-        trainer.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class, use_cuda=True)
+        trainer.load_checkpoint(filename=args.checkpoint_filepath, model_class=model_class, use_cuda=args.use_cuda)
 
-
+    valid_vars['root_folder'] = args.root_folder
+    valid_vars['use_cuda'] = args.use_cuda
 
     random_int_str = args.checkpoint_filepath.split('_')[-2]
     valid_vars['checkpoint_filenamebase'] = 'valid_halnet_log_' + str(random_int_str) + '_'
