@@ -63,7 +63,6 @@ def initialize_train_vars(args):
     train_vars = {}
     train_vars['done_training'] = False
     train_vars['losses'] = []
-    train_vars['start_epoch'] = 1
     train_vars['start_iter'] = 1
     train_vars['num_iter'] = args.num_iter
     train_vars['num_epochs'] = args.num_epochs
@@ -338,7 +337,6 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_b
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'train_vars': train_vars,
-        'train_vars': vars,
     }
     save_checkpoint(checkpoint_model_dict, filename=vars['checkpoint_filenamebase'] + '.pth.tar')
     msg = ''

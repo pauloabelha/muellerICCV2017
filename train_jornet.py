@@ -192,6 +192,8 @@ train_vars['n_iter_per_epoch'] = int(len(train_loader) / train_vars['iter_size']
 train_vars['tot_iter'] = int(len(train_loader) / train_vars['iter_size'])
 train_vars['start_iter_mod'] = train_vars['start_iter'] % train_vars['tot_iter']
 
+train_vars['start_epoch'] = int(train_vars['start_iter'] / train_vars['n_iter_per_epoch'])
+
 trainer.print_header_info(model, train_loader, train_vars)
 
 model.train()
@@ -201,7 +203,7 @@ msg = ''
 for epoch in range(train_vars['num_epochs']):
     train_vars['curr_epoch_iter'] = 1
     if epoch + 1 < train_vars['start_epoch']:
-        msg += print_verbose("Advancing through epochs: " + str(epoch + 1), train_vars['verbose'], erase_line=True)
+        msg += print_verbose("\nAdvancing through epochs: " + str(epoch + 1), train_vars['verbose'], erase_line=True)
         train_vars['curr_iter'] += train_vars['n_iter_per_epoch']
         if not train_vars['output_filepath'] == '':
             with open(train_vars['output_filepath'], 'a') as f:
