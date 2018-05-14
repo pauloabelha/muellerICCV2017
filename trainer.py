@@ -11,6 +11,8 @@ from random import randint
 import datetime
 
 def load_checkpoint(filename, model_class, use_cuda=True):
+    torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
+    '''
     if use_cuda:
         try:
             torch_file = torch.load(filename)
@@ -19,6 +21,7 @@ def load_checkpoint(filename, model_class, use_cuda=True):
             use_cuda = False
     else:
         torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
+    '''
     model_state_dict = torch_file['model_state_dict']
     train_vars = torch_file['train_vars']
     params_dict = {}
@@ -29,9 +32,12 @@ def load_checkpoint(filename, model_class, use_cuda=True):
         params_dict['use_cuda'] = False
     model = model_class(params_dict)
     model.load_state_dict(model_state_dict)
+    if use_cuda:
+        model = model.cuda()
     optimizer_state_dict = torch_file['optimizer_state_dict']
     optimizer = torch.optim.Adadelta(model.parameters())
     optimizer.load_state_dict(optimizer_state_dict)
+    del optimizer_state_dict, model_state_dict
     return model, optimizer, train_vars, train_vars
 
 def save_final_checkpoint(train_vars, model, optimizer):
