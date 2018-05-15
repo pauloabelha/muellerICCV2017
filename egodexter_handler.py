@@ -4,7 +4,7 @@ from dataset_handler import load_dataset_split
 import camera
 import pickle
 import torch
-from converter import convert_color_space_label_to_heatmap
+from converter import convert_color_space_label_to_heatmap, convert_labels_2D_new_res
 from io_image import change_res_image, read_RGB_image
 from scipy.spatial.distance import pdist, squareform
 import visualize
@@ -37,6 +37,8 @@ class EgoDexterDataset(Dataset):
     root_folder = ''
     data_folders = ['Desk/', 'Fruits/', 'Kitchen/', 'Rotunda/']
     type = ''
+    orig_img_res = (640, 480)
+    img_res = (640, 480)
     root_dir = ''
     filenamebases = []
     file_ixs = []
@@ -70,18 +72,21 @@ class EgoDexterDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        filenamebase = self.filenamebases[idx]
-        print(filenamebase)
-        img_label_2D = self.get_label(idx).astype(int)
-        print(img_label_2D)
-        img_data = self.get_image(idx, as_torch=False)
+        return self.get_image_and_labels(idx)
+
+    def __len__(self):
+        return self.length
+
+    def get_image_and_labels(self, idx, as_torch=True):
+        img_labels_2D, img_labels_heatmaps = self.get_labels(idx)
+        img_data = self.get_image(idx, as_torch=as_torch)
         for i in range(5):
-            if img_data[3, img_label_2D[i, 0], img_label_2D[i, 1]] == 0:
-                img_label_2D[i, :] = [-1, -1]
-        print(img_label_2D)
-        visualize.plot_image(img_data, title=filenamebase)
-        visualize.show()
-        return (img_data, img_label_2D)
+            if img_data[3, img_labels_2D[i, 0], img_labels_2D[i, 1]] == 0:
+                img_labels_2D[i, :] = [-1, -1]
+        if as_torch:
+            img_labels_2D = torch.from_numpy(img_labels_2D).float()
+            img_labels_heatmaps = torch.from_numpy(img_labels_heatmaps).float()
+        return (img_data, (img_labels_2D, img_labels_heatmaps))
 
     def get_image(self, idx, as_torch=True, color_on_depth_suffix='_color_on_depth.png', depth_suffix='_depth.png'):
         filenamebase = self.filenamebases[idx]
@@ -103,8 +108,22 @@ class EgoDexterDataset(Dataset):
             img_data = torch.from_numpy(RGBD_image).float()
         return img_data
 
-    def get_label(self, idx):
-        return self.img_labels[self.filenamebases[idx]]
+    def get_labels(self, idx):
+        img_labels_2D = self.img_labels[self.filenamebases[idx]].astype(int)
+        for label_ix in range(img_labels_2D.shape[0]):
+            img_labels_2D[label_ix, :] = convert_labels_2D_new_res(img_labels_2D[label_ix, :],
+                                                                   self.orig_img_res, self.img_res)
+        img_labels_heatmaps = self.get_labels_heatmaps(img_labels_2D)
+        return img_labels_2D, img_labels_heatmaps
+
+    def get_labels_heatmaps(self, img_labels_2D):
+        labels_heatmaps = np.zeros((len(self.joint_ixs), self.img_res[0], self.img_res[1]))
+        for label_ix in range(img_labels_2D.shape[0]):
+            label_heatmap =\
+                convert_color_space_label_to_heatmap(img_labels_2D[label_ix, :], self.img_res)
+            label_heatmap = label_heatmap.astype(float)
+            labels_heatmaps[label_ix, :, :] = label_heatmap
+        return labels_heatmaps
 
     def _fill_img_labels(self):
         self.img_labels = {}

@@ -103,6 +103,12 @@ def convert_torch_dataimage_to_canonical(data, res=(640, 480)):
     assert image.shape[2] == 3
     return image
 
+def convert_labels_2D_new_res(color_space_label, orig_img_res, heatmap_res):
+    new_ix_res1 = int(color_space_label[0] /
+                      (orig_img_res[0] / heatmap_res[0]))
+    new_ix_res2 = int(color_space_label[1] /
+                      (orig_img_res[1] / heatmap_res[1]))
+    return np.array([new_ix_res1, new_ix_res2])
 
 def convert_color_space_label_to_heatmap(color_space_label, heatmap_res, orig_img_res=(640, 480)):
     '''
@@ -115,9 +121,6 @@ def convert_color_space_label_to_heatmap(color_space_label, heatmap_res, orig_im
     '''
     SMALL_PROB = 0.0
     heatmap = np.zeros(heatmap_res) + SMALL_PROB
-    new_ix_res1 = int(color_space_label[0] /
-                      (orig_img_res[0] / heatmap_res[0]))
-    new_ix_res2 = int(color_space_label[1] /
-                      (orig_img_res[1] / heatmap_res[1]))
-    heatmap[new_ix_res1, new_ix_res2] = 1 - (SMALL_PROB * heatmap.size)
+    new_label_res = convert_labels_2D_new_res(color_space_label, orig_img_res, heatmap_res)
+    heatmap[new_label_res[0], new_label_res[1]] = 1 - (SMALL_PROB * heatmap.size)
     return heatmap
