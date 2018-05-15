@@ -1,73 +1,32 @@
-import os
 import numpy as np
 import camera
 import pickle
 import torch
 from torch.utils.data.dataset import Dataset
 from converter import convert_color_space_label_to_heatmap
-from io_image import change_res_image, _read_RGB_image
+from dataset_handler import load_dataset_split
+from io_image import change_res_image, read_RGB_image
 from scipy.spatial.distance import pdist, squareform
-import visualize
 
-DATASET_SPLIT_FILENAME = 'dataset_split_files.p'
+DEPTH_INTR_MTX =     np.array([[475.62,     0.0,        311.125],
+                                [0.0,        475.62,     245.965],
+                                [0.0,        0.0,        1.0]])
+DEPTH_INTR_MTX_INV =     np.array([[0.00210252, 0., -0.65414617],
+                                [0., 0.00210252, -0.51714604],
+                                [0., 0., 1.]])
+COLOR_INTR_MTX = np.array([[617.173,    0.0,       315.453],
+                           [0.0,        617.173,    242.259],
+                           [0.0,        0.0,        1.0]])
+COLOR_EXTR_MTX = np.array([[1.0, 0.0, 0.0, 24.7],
+                           [0.0, 1.0, 0.0, -0.0471401],
+                           [0.0, 0.0, 1.0, 3.72045],
+                           [0.0, 0.0, 0.0, 1.0]])
+PROJECT_MTX =    np.array([[1.0, 0.0, 0.0, 0.0],
+                           [0.0, 1.0, 0.0, 0.0],
+                           [0.0, 0.0, 1.0, 0.0]])
 
-def load_dataset_split(root_folder, splitfilename=DATASET_SPLIT_FILENAME):
-    return pickle.load(open(root_folder + splitfilename, "rb"))
+DATASET_SPLIT_FILENAME = 'dataset_split_synthhands.p'
 
-def save_dataset_split(dataset_root_folder, perc_train=0.7, perc_valid=0.15, perc_test=0.15,
-                       splitfilename=DATASET_SPLIT_FILENAME):
-    print("Recursively traversing all files in root folder: " + dataset_root_folder)
-    orig_num_tabs = len(dataset_root_folder.split('/'))
-    len_root_folder = len(dataset_root_folder)
-    num_files_to_process = 0
-    for root, dirs, files in os.walk(dataset_root_folder, topdown=True):
-        for filename in sorted(files):
-            if filename[-18:-4] == 'color_on_depth':
-                num_files_to_process += 1
-        tabs = '  ' * (len(root.split('/')) - orig_num_tabs)
-        print('Counting files (' + str(num_files_to_process) + ')' +  tabs + root)
-    print("Number of files to process: " + str(num_files_to_process))
-    filenamebases = [0] * num_files_to_process
-    ix = 0
-    for root, dirs, files in os.walk(dataset_root_folder, topdown=True):
-        for filename in sorted(files):
-            if filename[-18:-4] == 'color_on_depth':
-                filenamebases[ix] = os.path.join(root, filename[0:8])[len_root_folder:]
-                ix += 1
-        tabs = '  ' * (len(root.split('/')) - orig_num_tabs)
-        print(str(ix) + '/' + str(num_files_to_process) + ' files processed : ' + tabs + root)
-    print("Done traversing files")
-    print("Randomising file names...")
-    ixs_randomize = np.random.choice(len(filenamebases), len(filenamebases), replace=False)
-    filenamebases = np.array(filenamebases)
-    filenamebases_randomized = filenamebases[ixs_randomize]
-    print("Splitting into training, validation and test sets...")
-    num_train = int(np.floor(len(filenamebases) * perc_train))
-    num_valid = int(np.floor(len(filenamebases) * perc_valid))
-    filenamebases_train = filenamebases_randomized[0: num_train]
-    filenamebases_valid = filenamebases_randomized[num_train: num_train + num_valid]
-    filenamebases_test = filenamebases_randomized[num_train + num_valid:]
-    print("Dataset split")
-    print("Percentages of split: training " + str(perc_train*100) + "%, " +
-          "validation " + str(perc_valid*100) + "% and " +
-          "test " + str(perc_test*100) + "%")
-    print("Number of files of split: training " + str(len(filenamebases_train)) + ", " +
-          "validation " + str(len(filenamebases_valid)) + " and " +
-          "test " + str(len(filenamebases_test)))
-    print("Saving split into pickle file: " + splitfilename)
-    data = {
-            'dataset_root_folder': dataset_root_folder,
-            'perc_train': perc_train,
-            'perc_valid': perc_valid,
-            'perc_test': perc_test,
-            'filenamebases': filenamebases,
-            'ixs_randomize': ixs_randomize,
-            'filenamebases_train': filenamebases_train,
-            'filenamebases_valid': filenamebases_valid,
-            'filenamebases_test': filenamebases_test
-            }
-    with open(splitfilename, 'wb') as handle:
-        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def _get_joint_prior(dataset_folder,  prior_file_name):
     joint_prior_dict = pickle.load(open(dataset_folder + prior_file_name, "rb"))
@@ -94,10 +53,10 @@ def _get_joints_dist_posterior(target_joints):
 def _get_data(root_folder, filenamebase, new_res, as_torch=True, depth_suffix='_depth.png', color_on_depth_suffix='_color_on_depth.png'):
     # load color
     color_on_depth_image_filename = root_folder + filenamebase + color_on_depth_suffix
-    color_on_depth_image = _read_RGB_image(color_on_depth_image_filename, new_res=new_res)
+    color_on_depth_image = read_RGB_image(color_on_depth_image_filename, new_res=new_res)
     # load depth
     depth_image_filename = root_folder + filenamebase + depth_suffix
-    depth_image = _read_RGB_image(depth_image_filename, new_res=new_res)
+    depth_image = read_RGB_image(depth_image_filename, new_res=new_res)
     depth_image = np.array(depth_image)
     depth_image = np.reshape(depth_image, (depth_image.shape[0], depth_image.shape[1], 1))
     # get data
@@ -115,7 +74,7 @@ def get_labels_depth_and_color(root_folder, filenamebase, label_suffix='_joint_p
     labels_joint_depth_z = np.zeros((labels_jointspace.shape[0], 1))
     for i in range(labels_jointspace.shape[0]):
         labels_colorspace[i, 0], labels_colorspace[i, 1],  labels_joint_depth_z[i] \
-            = camera.joint_depth2color(labels_jointspace[i])
+            = camera.joint_depth2color(labels_jointspace[i], DEPTH_INTR_MTX)
     return labels_jointspace, labels_colorspace, labels_joint_depth_z
 
 def get_labels_jointvec(labels_jointspace, joint_ixs, rel_root=False):
@@ -270,7 +229,7 @@ class SynthHandsDataset(Dataset):
         prop_res_u = halnet_res[0] / orig_res[0]
         prop_res_v = halnet_res[1] / orig_res[1]
         label = _read_label(self.filenamebases[example_ix])
-        u, v = camera.joint_depth2color(label[joint_ix])
+        u, v = camera.joint_depth2color(label[joint_ix], DEPTH_INTR_MTX)
         u = int(u * prop_res_u)
         v = int(v * prop_res_v)
         return u, v

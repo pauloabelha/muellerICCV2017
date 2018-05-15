@@ -82,7 +82,7 @@ def add_squares_for_joint_in_color_space(image, joint, color=[0, 0, 100]):
     image = _add_small_square(image, u, v, color)
     return image
 
-def _add_squares_for_joints(image, joints):
+def _add_squares_for_joints(image, joints, depth_intr_matrix):
     '''
 
     :param image: image to which add joint squares
@@ -93,13 +93,13 @@ def _add_squares_for_joints(image, joints):
     joints_color_space = np.zeros((joints.shape[0], 2))
     for joint_ix in range(joints.shape[0]):
         joint = joints[joint_ix, :]
-        u, v = camera.joint_depth2color(joint)
+        u, v = camera.joint_depth2color(joint, depth_intr_matrix)
         image = _add_small_square(image, u, v)
         joints_color_space[joint_ix, 0] = u
         joints_color_space[joint_ix, 1] = v
     return image, joints_color_space
 
-def show_me_example(example_ix_str):
+def show_me_example(example_ix_str, depth_intr_matrix):
     '''
 
         :return: image of first example in dataset (also plot it)
@@ -115,7 +115,7 @@ def show_me_example(example_ix_str):
 
     joints = np.array(joint_label).astype(float)
     image, joints_color_space\
-        = _add_squares_for_joints(image, joints)
+        = _add_squares_for_joints(image, joints, depth_intr_matrix)
 
     cv2.imshow('Example image with joints as blue squares', image)
     print("Press 0 to close image...")
@@ -123,12 +123,12 @@ def show_me_example(example_ix_str):
     cv2.destroyAllWindows()
     return image, joints_color_space
 
-def show_me_an_example():
+def show_me_an_example(depth_intr_matrix):
     '''
 
     :return: image of first example in dataset (also plot it)
     '''
-    return show_me_example('000')
+    return show_me_example('000', depth_intr_matrix)
 
 def show_dataset_example_with_joints(dataset, example_ix=0):
     filenamebases = dataset.filenamebases
