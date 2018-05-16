@@ -60,7 +60,6 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
                 #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop)
                 #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
                 visualize.show()
-
         #loss.backward()
         valid_vars['total_loss'] += loss
         # accumulate pixel dist loss for sub-mini-batch

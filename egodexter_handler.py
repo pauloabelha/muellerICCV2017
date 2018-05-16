@@ -2,12 +2,9 @@ import numpy as np
 from torch.utils.data.dataset import Dataset
 from dataset_handler import load_dataset_split
 import camera
-import pickle
 import torch
 from converter import convert_color_space_label_to_heatmap, convert_labels_2D_new_res
-from io_image import change_res_image, read_RGB_image
-from scipy.spatial.distance import pdist, squareform
-import visualize
+from io_image import read_RGB_image
 
 DEPTH_INTR_MTX =     np.array([[475.62,         0.0,            311.125],
                                [0.0,            475.62,         245.965],

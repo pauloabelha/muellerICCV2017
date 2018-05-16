@@ -205,7 +205,7 @@ class SynthHandsDataset(Dataset):
     def __init__(self, root_folder, type_, joint_ixs=range(21), heatmap_res=(320, 240), crop_hand=False):
         self.type = type_
         self.joint_ixs = joint_ixs
-        dataset_split_files = load_dataset_split(root_folder=root_folder)
+        dataset_split_files = load_dataset_split(root_folder=root_folder, splitfilename='dataset_split_files.p')
         if self.type == 'full':
             self.filenamebases = dataset_split_files['filenamebases']
         else:
