@@ -54,9 +54,9 @@ def train(train_loader, model, optimizer, train_vars):
             target_joints = target_joints.cuda()
             target_joints_z = target_joints_z.cuda()
         # get model output
-        ax, fig = visualize.plot_3D_joints(target_joints[0])
-        visualize.plot_3D_joints(target_joints[1], ax=ax, fig=fig)
-        visualize.show()
+        #ax, fig = visualize.plot_3D_joints(target_joints[0])
+        #visualize.plot_3D_joints(target_joints[1], ax=ax, fig=fig)
+        #visualize.show()
         output = model(data)
         # accumulate loss for sub-mini-batch
         if train_vars['cross_entropy']:
