@@ -20,6 +20,7 @@ class JORNet(HALNet_class):
     def __init__(self, params_dict):
         super(JORNet, self).__init__(params_dict)
 
+        self.num_joints = 20
         self.main_loss_conv = cudafy(HALNet.HALNetConvBlock(
                 kernel_size=3, stride=1, filters=21, in_channels=256, padding=1),
             self.use_cuda)

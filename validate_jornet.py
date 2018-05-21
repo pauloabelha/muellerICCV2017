@@ -61,20 +61,25 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         # get boolean variable stating whether a mini-batch has been completed
 
         for i in range(control_vars['max_mem_batch']):
-            filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
-            filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
+            visualize.plot_3D_joints(output[7].reshape((21, 3)))
+            visualize.show()
+            ax3d, fig = visualize.plot_3D_joints(target_joints)
+            visualize.plot_3D_joints(output[7], ax=ax3d, fig=fig)
+            visualize.show()
+            #filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
+            #filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
             #visualize.plot_image(data[i].data.cpu().numpy(), title=filenamebase)
             #target_joints_colorspace = camera.joints_depth2color(output[7][i].data.cpu().numpy().reshape((21, 3)),
             #                                                     target_handroot.data.cpu().numpy())
             #visualize.plot_3D_joints(target_joints_colorspace)
             #fig = visualize.create_fig()
-            visualize.plot_joints_from_heatmaps(target_heatmaps[i].data.cpu().numpy(),
-                                                title='GT joints: ' + filenamebase, data=data[i].data.cpu().numpy())
-            visualize.plot_joints_from_heatmaps(output[3][i].data.cpu().numpy(),
-                                                title='Pred joints: ' + filenamebase, data=data[i].data.cpu().numpy())
-            visualize.plot_image_and_heatmap(output[3][i][4].data.numpy(),
-                                             data=data[i].data.numpy(),
-                                             title='Thumb tib heatmap: ' + filenamebase)
+            #visualize.plot_joints_from_heatmaps(target_heatmaps[i].data.cpu().numpy(),
+            #                                    title='GT joints: ' + filenamebase, data=data[i].data.cpu().numpy())
+            #visualize.plot_joints_from_heatmaps(output[3][i].data.cpu().numpy(),
+            #                                    title='Pred joints: ' + filenamebase, data=data[i].data.cpu().numpy())
+            #visualize.plot_image_and_heatmap(output[3][i][4].data.numpy(),
+            #                                 data=data[i].data.numpy(),
+            #                                 title='Thumb tib heatmap: ' + filenamebase)
             #print('\n-----------------------------------------')
             #aa = output[3][i][8].data.numpy()
             #aa = np.exp(aa)
@@ -93,7 +98,7 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             #visualize.plot_image(data_crop_img, title=filenamebase, fig=fig)
             #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
-            visualize.show()
+            #visualize.show()
             aa1 = target_joints[i].data.cpu().numpy().reshape((21, 3))
             aa2 = output[7][i].data.cpu().numpy().reshape((21, 3))
             print(np.sum(np.abs(aa1 - aa2)) / 63)
@@ -169,6 +174,15 @@ model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse
 
 if valid_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
+visualize.plot_line(valid_vars['losses'], 'Main loss')
+visualize.show()
+
+visualize.plot_line(valid_vars['losses_heatmaps'], 'Heatmap loss')
+visualize.show()
+
+visualize.plot_line(valid_vars['losses_joints'], 'Joint loss')
+visualize.show()
 
 valid_loader = synthhands_handler.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
                                                              joint_ixs=model.joint_ixs,

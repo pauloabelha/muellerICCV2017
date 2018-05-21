@@ -45,6 +45,8 @@ def train(train_loader, model, optimizer, train_vars):
         start = time.time()
         # get data and target as torch Variables
         target_heatmaps, target_joints, target_joints_z = target
+        # make target joints be relative
+        target_joints = target_joints[:, 3:]
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
         if train_vars['use_cuda']:
             data = data.cuda()
@@ -52,6 +54,9 @@ def train(train_loader, model, optimizer, train_vars):
             target_joints = target_joints.cuda()
             target_joints_z = target_joints_z.cuda()
         # get model output
+        ax, fig = visualize.plot_3D_joints(target_joints[0])
+        visualize.plot_3D_joints(target_joints[1], ax=ax, fig=fig)
+        visualize.show()
         output = model(data)
         # accumulate loss for sub-mini-batch
         if train_vars['cross_entropy']:

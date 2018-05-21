@@ -71,6 +71,7 @@ class HALNetResBlockConv(nn.Module):
                                                filters2=filters2,
                                                padding1=padding_right1,
                                                padding2=padding_right2,
+
                                                padding3=padding_right3,
                                                first_in_channels=
                                                first_in_channels)

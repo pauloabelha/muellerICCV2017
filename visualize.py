@@ -225,10 +225,15 @@ def plot_joints_from_colorspace(joints_colorspace, data=None, title='', fig=None
         fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
     return fig
 
-def plot_3D_joints(joints_vec):
-    fig = plt.figure()
-    ax = Axes3D(fig)
-    joints_vec = joints_vec.reshape((21, 3))
+def plot_3D_joints(joints_vec, ax=None, fig=None):
+    if ax is None:
+        fig = plt.figure()
+        ax = Axes3D(fig)
+    if joints_vec.shape[0] == 60:
+        joints_vec = joints_vec.reshape((20, 3))
+        joints_vec = np.vstack([np.zeros((1, 3)), joints_vec])
+    else:
+        joints_vec = joints_vec.reshape((21, 3))
     for i in range(5):
         idx = (i * 4) + 1
         ax.plot([joints_vec[0, 1], joints_vec[idx, 1]],
@@ -245,16 +250,14 @@ def plot_3D_joints(joints_vec):
                     label='',
                     color='C' + str(j+1))
             idx += 1
-    print(joints_vec)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    ax.set_xlim(0, 640)
-    ax.set_ylim(0, 480)
-    ax.set_zlim(0, 500)
+    #ax.set_xlim(0, 640)
+    #ax.set_ylim(0, 480)
+    #ax.set_zlim(0, 500)
     ax.view_init(azim=270, elev=250)
-    plt.show()
-    aa =0
+    return ax, fig
 
 def plot_image(data, title='', fig=None):
     if fig is None:
@@ -270,6 +273,10 @@ def plot_image_and_heatmap(heatmap, data, title=''):
     heatmap = np.exp(heatmap)
     heatmap = heatmap.swapaxes(0, 1)
     plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
+
+def plot_line(values, title=''):
+    plt.plot(values)
+    plt.title(title)
 
 def show():
     plt.show()
