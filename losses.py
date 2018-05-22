@@ -72,7 +72,9 @@ def calculate_loss_JORNet(loss_func, output, target_heatmaps, target_joints, joi
     loss = 0
     loss_heatmaps = 0
     loss_joints = 0
-    for loss_ix in range(3):
+    for loss_ix in range(4):
+        if loss_ix < 3:
+            continue
         loss_sub, loss_heatmaps_sub, loss_joints_sub =\
             calculate_subloss_JORNet(loss_func, output[loss_ix], output[loss_ix+4],
                                      target_heatmaps, target_joints, joint_ixs,

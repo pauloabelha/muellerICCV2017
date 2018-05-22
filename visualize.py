@@ -225,8 +225,8 @@ def plot_joints_from_colorspace(joints_colorspace, data=None, title='', fig=None
         fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
     return fig
 
-def plot_3D_joints(joints_vec, ax=None, fig=None):
-    if ax is None:
+def plot_3D_joints(joints_vec, fig=None, ax=None, color_root='C0'):
+    if fig is None:
         fig = plt.figure()
         ax = Axes3D(fig)
     if joints_vec.shape[0] == 60:
@@ -240,7 +240,7 @@ def plot_3D_joints(joints_vec, ax=None, fig=None):
                 [joints_vec[0, 0], joints_vec[idx, 0]],
                 [joints_vec[0, 2], joints_vec[idx, 2]],
                 label='',
-                color='C0')
+                color=color_root)
     for j in range(5):
         idx = (j * 4) + 1
         for i in range(3):
@@ -257,7 +257,7 @@ def plot_3D_joints(joints_vec, ax=None, fig=None):
     #ax.set_ylim(0, 480)
     #ax.set_zlim(0, 500)
     ax.view_init(azim=270, elev=250)
-    return ax, fig
+    return fig, ax
 
 def plot_image(data, title='', fig=None):
     if fig is None:

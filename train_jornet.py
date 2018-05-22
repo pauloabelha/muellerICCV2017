@@ -54,10 +54,8 @@ def train(train_loader, model, optimizer, train_vars):
             target_joints = target_joints.cuda()
             target_joints_z = target_joints_z.cuda()
         # get model output
-        #ax, fig = visualize.plot_3D_joints(target_joints[0])
-        #visualize.plot_3D_joints(target_joints[1], ax=ax, fig=fig)
-        #visualize.show()
         output = model(data)
+
         # accumulate loss for sub-mini-batch
         if train_vars['cross_entropy']:
             loss_func = my_losses.cross_entropy_loss_p_logq
@@ -98,6 +96,18 @@ def train(train_loader, model, optimizer, train_vars):
         # get boolean variable stating whether a mini-batch has been completed
         minibatch_completed = (batch_idx+1) % train_vars['iter_size'] == 0
         if minibatch_completed:
+            # visualize
+            # ax, fig = visualize.plot_3D_joints(target_joints[0])
+            # visualize.plot_3D_joints(target_joints[1], ax=ax, fig=fig)
+            if train_vars['curr_iter'] % train_vars['log_interval'] == 0:
+                fig, ax = visualize.plot_3D_joints(target_joints[0])
+                visualize.savefig('joints_GT_' + str(train_vars['curr_iter']) + '.png')
+                #visualize.plot_3D_joints(target_joints[1], fig=fig, ax=ax, color_root='C7')
+                #visualize.plot_3D_joints(output[7].data.cpu().numpy()[0], fig=fig, ax=ax, color_root='C7')
+                visualize.plot_3D_joints(output[7].data.cpu().numpy()[0])
+                visualize.savefig('joints_model_' + str(train_vars['curr_iter']) + '.png')
+                #visualize.show()
+                #visualize.savefig('joints_' + str(train_vars['curr_iter']) + '.png')
             # change learning rate to 0.01 after 45000 iterations
             optimizer = change_learning_rate(optimizer, 0.01, train_vars['curr_iter'])
             # optimise for mini-batch
