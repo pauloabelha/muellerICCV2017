@@ -32,6 +32,8 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         start = time.time()
         # get data and targetas cuda variables
         target_heatmaps, target_joints, target_handroot = target
+        # make target joints be relative
+        target_joints = target_joints[:, 3:]
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
         if valid_vars['use_cuda']:
             data = data.cuda()
@@ -61,11 +63,32 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         # get boolean variable stating whether a mini-batch has been completed
 
         for i in range(control_vars['max_mem_batch']):
-            visualize.plot_3D_joints(output[7].reshape((21, 3)))
+            filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
+            filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
+            output_batch_numpy = output[7][i].data.cpu().numpy()
+            fig, ax = visualize.plot_3D_joints(target_joints[i])
+            visualize.plot_3D_joints(output_batch_numpy, fig=fig, ax=ax, color_root='C6')
             visualize.show()
-            ax3d, fig = visualize.plot_3D_joints(target_joints)
-            visualize.plot_3D_joints(output[7], ax=ax3d, fig=fig)
+
+            temp = np.zeros((21, 3))
+            output_batch_numpy_abs = output_batch_numpy.reshape((20, 3))
+            temp[1:, :] = output_batch_numpy_abs
+            output_batch_numpy_abs = temp
+            output_joints_colorspace = camera.joints_depth2color(
+                output_batch_numpy_abs,
+                depth_intr_matrix=synthhands_handler.DEPTH_INTR_MTX,
+                handroot=target_handroot[i].data.cpu().numpy())
+            visualize.plot_3D_joints(output_joints_colorspace)
             visualize.show()
+
+            #image_rgbd = conv.numpy_to_plottable_rgb(data[i].data.numpy())
+            #visualize.plot_joints_from_colorspace(output_joints_colorspace,
+            #                                      title=filenamebase,
+            #                                      fig=fig,
+            #                                      data=image_rgbd)
+            #visualize.show()
+
+
             #filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
             #filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
             #visualize.plot_image(data[i].data.cpu().numpy(), title=filenamebase)
@@ -90,7 +113,7 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             #print(model.cross_entropy)
             #print('-----------------------------------------')
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_heatmap')
-
+            #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
             #labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
             #data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
             #    io_data.crop_image_get_labels(data[i].data.numpy(), labels_colorspace, range(21))
@@ -99,9 +122,11 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
             #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
             #visualize.show()
-            aa1 = target_joints[i].data.cpu().numpy().reshape((21, 3))
-            aa2 = output[7][i].data.cpu().numpy().reshape((21, 3))
-            print(np.sum(np.abs(aa1 - aa2)) / 63)
+            aa1 = target_joints[i].data.cpu().numpy().reshape((20, 3))
+            aa2 = output[7][i].data.cpu().numpy().reshape((20, 3))
+            print('\n----------------------------------')
+            print(np.sum(np.abs(aa1 - aa2)) / 60)
+            print('----------------------------------')
 
         #loss.backward()
         valid_vars['total_loss'] += loss
@@ -175,14 +200,16 @@ model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse
 if valid_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
+'''
 visualize.plot_line(valid_vars['losses'], 'Main loss')
 visualize.show()
 
-visualize.plot_line(valid_vars['losses_heatmaps'], 'Heatmap loss')
+visualize.plot_line(valid_vars['losses_heatmaps'], 'batch_halnetHeatmap loss')
 visualize.show()
 
 visualize.plot_line(valid_vars['losses_joints'], 'Joint loss')
 visualize.show()
+'''
 
 valid_loader = synthhands_handler.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
                                                              joint_ixs=model.joint_ixs,

@@ -23,7 +23,8 @@ def joint_depth2color(joint_depth, depth_intr_matrix, handroot=None):
     if handroot is None:
         handroot = np.zeros((1, 3))
     joint_depth = joint_depth + handroot
-    joint_depth = joint_depth[0]
+    if joint_depth.shape[0] == 1:
+        joint_depth = joint_depth[0]
     joint_depth_z = joint_depth[2]
     joint_pixel = np.dot(depth_intr_matrix, joint_depth)
     if joint_depth_z == 0:
@@ -35,11 +36,14 @@ def joint_depth2color(joint_depth, depth_intr_matrix, handroot=None):
     return u, v, joint_depth_z
 
 
-def joints_depth2color(joints_depth, depth_intr_matrix, handroot=None):
+def joints_depth2color(joints_depth, depth_intr_matrix, handroot=None, img_res=None, orig_res=None):
     if handroot is None:
         handroot = np.zeros((1, 3))
     joints_colorspace = np.zeros((joints_depth.shape[0], 3))
     for i in range(joints_colorspace.shape[0]):
         joints_colorspace[i, 0], joints_colorspace[i, 1], joints_colorspace[i, 2] \
             = joint_depth2color(joints_depth[i, :], depth_intr_matrix, handroot=handroot)
+    if not img_res is None:
+        for dim in range(2):
+            joints_colorspace[:, dim] *= (img_res[dim] / orig_res[dim])
     return joints_colorspace

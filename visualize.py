@@ -199,7 +199,7 @@ def plot_joints(joints_colorspace, fig=None, show_legend=True, linewidth=4):
         color = 'C' + str(int(np.ceil((i + 1) / 4)))
         plt.plot(joints_colorspace[i + 1:i + 3, 1], joints_colorspace[i + 1:i + 3, 0], 'ro-', color=color, linewidth=linewidth)
         if show_legend and i % 4 == 0:
-            joint_name = joints_names[math.floor((i+1)/4)]
+            joint_name = joints_names[int(math.floor((i+1)/4))]
             legends.append(mpatches.Patch(color=color, label=joint_name))
     if show_legend:
         #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., handles=legends)

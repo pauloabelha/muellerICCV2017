@@ -129,7 +129,6 @@ train_vars['n_iter_per_epoch'] = int(len(train_loader) / train_vars['iter_size']
 
 train_vars['tot_iter'] = int(len(train_loader) / train_vars['iter_size'])
 train_vars['start_iter_mod'] = train_vars['start_iter'] % train_vars['tot_iter']
-get_loader
 trainer.print_header_info(model, train_loader, train_vars)
 
 model.train()

@@ -62,6 +62,7 @@ def save_final_checkpoint(train_vars, model, optimizer):
 def initialize_train_vars(args):
     train_vars = {}
     train_vars['done_training'] = False
+    train_vars['start_epoch'] = 0
     train_vars['losses'] = []
     train_vars['start_iter'] = 1
     train_vars['num_iter'] = args.num_iter
