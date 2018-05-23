@@ -25,6 +25,25 @@ def change_learning_rate(optimizer, lr, curr_iter):
             param_group['lr'] = lr
     return optimizer
 
+def get_batch(loader, batch_idx, batch_size):
+    data = []
+    targets0 = []
+    targets1 = []
+    targets2 = []
+    for i in range(batch_size):
+        datum, target = loader.dataset[batch_idx + i]
+        target0, target1, target2 = target
+        data.append(datum)
+        targets0.append(target0)
+        targets1.append(target1)
+        targets2.append(torch.from_numpy(target2))
+    data = torch.stack(data)
+    targets0 = torch.stack(targets0)
+    targets1 = torch.stack(targets1)
+    targets2 = torch.stack(targets2)
+    targets = (targets0, targets1, targets2)
+    return data, targets
+
 def train(train_loader, model, optimizer, train_vars):
     verbose = train_vars['verbose']
     for batch_idx, (data, target) in enumerate(train_loader):

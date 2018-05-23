@@ -5,3 +5,4 @@ __py_cache__/*
 tsne.py
 .idea/workspace.py
 *.txt
+*.png
