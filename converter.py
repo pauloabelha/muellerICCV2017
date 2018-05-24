@@ -1,4 +1,10 @@
 import numpy as np
+import torch
+from torch.autograd import Variable
+
+import camera
+import synthhands_handler
+
 
 def numpy_swap_cols(np_array):
     np_array[:,[0, 1]] = np_array[:,[1, 0]]
@@ -110,7 +116,7 @@ def convert_labels_2D_new_res(color_space_label, orig_img_res, heatmap_res):
                       (orig_img_res[1] / heatmap_res[1]))
     return np.array([new_ix_res1, new_ix_res2])
 
-def convert_color_space_label_to_heatmap(color_space_label, heatmap_res, orig_img_res=(640, 480)):
+def color_space_label_to_heatmap(color_space_label, heatmap_res, orig_img_res=(640, 480)):
     '''
     Convert a (u,v) color-space label into a heatmap
     In this case, the heat map has only one value set to 1
@@ -124,3 +130,29 @@ def convert_color_space_label_to_heatmap(color_space_label, heatmap_res, orig_im
     new_label_res = convert_labels_2D_new_res(color_space_label, orig_img_res, heatmap_res)
     heatmap[new_label_res[0], new_label_res[1]] = 1 - (SMALL_PROB * heatmap.size)
     return heatmap
+
+
+def data_to_batch(data):
+    batch = np.zeros((1, data.shape[0], data.shape[1], data.shape[2]))
+    batch[0, :, :, :] = data
+    batch = Variable(torch.from_numpy(batch).float())
+    return batch
+
+
+def jornet_local_to_global_joints(jornet_joints, handroot):
+    jornet_joints_global = np.zeros((21, 3))
+    jornet_joints_global[0, :] = handroot
+    jornet_joints = jornet_joints.reshape((20, 3))
+    jornet_joints_global[1:, :] = jornet_joints + handroot
+    return jornet_joints_global
+
+
+def joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(320, 240), orig_res=(640, 480)):
+    joints_colorspace = np.zeros((21, 2))
+    for i in range(21):
+        u, v, z = camera.joint_depth2color(jornet_joints_global[i, :], synthhands_handler.DEPTH_INTR_MTX)
+        joints_colorspace[i, 0] = u
+        joints_colorspace[i, 1] = v
+    joints_colorspace[:, 0] *= img_res[0] / orig_res[0]
+    joints_colorspace[:, 1] *= img_res[1] / orig_res[1]
+    return joints_colorspace

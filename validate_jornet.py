@@ -65,9 +65,18 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         for i in range(control_vars['max_mem_batch']):
             filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
             filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
+
+            print('')
+            print(filenamebase)
+
+            visualize.plot_image(data[i].data.numpy())
+            visualize.show()
+
             output_batch_numpy = output[7][i].data.cpu().numpy()
             fig, ax = visualize.plot_3D_joints(target_joints[i])
-            visualize.plot_3D_joints(output_batch_numpy, fig=fig, ax=ax, color_root='C6')
+            visualize.plot_3D_joints(output_batch_numpy, fig=fig, ax=ax, color='C6')
+
+            visualize.title(filenamebase)
             visualize.show()
 
             temp = np.zeros((21, 3))

@@ -225,7 +225,7 @@ def plot_joints_from_colorspace(joints_colorspace, data=None, title='', fig=None
         fig = plot_img_RGB(data_img_RGB, fig=fig, title=title)
     return fig
 
-def plot_3D_joints(joints_vec, fig=None, ax=None, color_root='C0'):
+def plot_3D_joints(joints_vec, title='', fig=None, ax=None, color=None):
     if fig is None:
         fig = plt.figure()
         ax = Axes3D(fig)
@@ -236,19 +236,27 @@ def plot_3D_joints(joints_vec, fig=None, ax=None, color_root='C0'):
         joints_vec = joints_vec.reshape((21, 3))
     for i in range(5):
         idx = (i * 4) + 1
+        if color is None:
+            curr_color = 'C0'
+        else:
+            curr_color = color
         ax.plot([joints_vec[0, 1], joints_vec[idx, 1]],
                 [joints_vec[0, 0], joints_vec[idx, 0]],
                 [joints_vec[0, 2], joints_vec[idx, 2]],
                 label='',
-                color=color_root)
+                color=curr_color)
     for j in range(5):
         idx = (j * 4) + 1
         for i in range(3):
+            if color is None:
+                curr_color = 'C' + str(j+1)
+            else:
+                curr_color = color
             ax.plot([joints_vec[idx, 1], joints_vec[idx + 1, 1]],
                     [joints_vec[idx, 0], joints_vec[idx + 1, 0]],
                     [joints_vec[idx, 2], joints_vec[idx + 1, 2]],
                     label='',
-                    color='C' + str(j+1))
+                    color=curr_color)
             idx += 1
     ax.set_xlabel('x')
     ax.set_ylabel('y')
@@ -256,7 +264,8 @@ def plot_3D_joints(joints_vec, fig=None, ax=None, color_root='C0'):
     #ax.set_xlim(0, 640)
     #ax.set_ylim(0, 480)
     #ax.set_zlim(0, 500)
-    ax.view_init(azim=270, elev=250)
+    ax.view_init(azim=0, elev=180)
+    ax.set_title(title)
     return fig, ax
 
 def plot_image(data, title='', fig=None):
@@ -278,6 +287,9 @@ def plot_line(values, title=''):
     plt.plot(values)
     plt.title(title)
 
+def title(title):
+    plt.title(title)
+
 def show():
     plt.show()
 
@@ -286,3 +298,10 @@ def savefig(filepath):
 
 def create_fig():
     return plt.figure()
+
+
+def plot_jornet_colorspace(joints_color_orig_res, filenamebase, dataset_folder, input_img_namebase, img_res=(640, 480)):
+    data = synthhands_handler._get_data(dataset_folder, filenamebase, img_res)
+    fig = plot_image(data[0:3, :, :].data.numpy(), title=input_img_namebase)
+    plot_joints_from_colorspace(joints_color_orig_res, fig=fig)
+    return joints_color_orig_res

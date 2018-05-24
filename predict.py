@@ -1,9 +1,7 @@
 import torch
-from torch.autograd import Variable
 import argparse
 import HALNet, JORNet
 import synthhands_handler
-import numpy as np
 import visualize
 import trainer
 import converter as conv
@@ -34,63 +32,74 @@ def predict_from_dataset(args, halnet, jornet):
                                                                  batch_size=pred_vars['max_mem_batch'],
                                                                  verbose=True)
 
-def convert_data_to_batch(data):
-    batch = np.zeros((1, data.shape[0], data.shape[1], data.shape[2]))
-    batch[0, :, :, :] = data
-    batch = Variable(torch.from_numpy(batch).float())
-    return batch
 
-def predict_from_image(args, halnet, jornet, img_res=(320, 240)):
+def plot_halnet_joints_from_heatmaps(halnet_main_out, img_numpy, filenamebase):
+    fig = visualize.create_fig()
+    visualize.plot_joints_from_heatmaps(halnet_main_out, fig=fig, data=img_numpy)
+    visualize.title('HALNet (joints from heatmaps): ' + filenamebase)
+    visualize.show()
+
+def plot_halnet_heatmap(halnet_mainout, img_numpy, heatmap_ix, filenamebase):
+    visualize.plot_image_and_heatmap(halnet_mainout[heatmap_ix], data=img_numpy)
+    joint_name = synthhands_handler.get_joint_name_from_ix(heatmap_ix)
+    visualize.title('HALNet (heatmap for ' + joint_name + '): ' + filenamebase)
+    visualize.show()
+
+def plot_halnet_joints_from_heatmaps_crop(halnet_main_out, img_numpy, filenamebase, plot=True):
+    labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
+    data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
+        synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
+    if plot:
+        fig = visualize.create_fig()
+        visualize.plot_image(data_crop, title=filenamebase, fig=fig)
+        visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop)
+        visualize.title('HALNet (joints from heatmaps - cropped): ' + filenamebase)
+        visualize.show()
+    return data_crop
+
+def plot_jornet_joints_global_depth(joints_global_depth, filenamebase,
+                                    gt_joints=None, color_jornet_joints='C6'):
+    if gt_joints is None:
+        visualize.plot_3D_joints(joints_global_depth)
+    else:
+        fig, ax = visualize.plot_3D_joints(gt_joints)
+        visualize.plot_3D_joints(joints_global_depth, fig=fig, ax=ax, color=color_jornet_joints)
+    visualize.title('JORNet (GT multi-coloured; JORNet single color): ' + filenamebase)
+    visualize.show()
+    return joints_global_depth
+
+def get_jornet_colorspace(joints_global_depth, handroot):
+    joints_color_orig_res = camera.joints_depth2color(
+        joints_global_depth,
+        depth_intr_matrix=synthhands_handler.DEPTH_INTR_MTX,
+        handroot=handroot)
+    return joints_color_orig_res
+
+
+def predict_from_image(args, halnet, jornet, img_res=(320, 240), orig_res=(640, 480)):
+    # get data and labels
     data = synthhands_handler._get_data(args.dataset_folder, args.input_img_namebase, img_res)
     labels_jointspace, labels_colorspace, labels_joint_depth_z =\
         synthhands_handler.get_labels_depth_and_color(args.dataset_folder, args.input_img_namebase)
-    labels_jointvec, handroot = synthhands_handler.get_labels_jointvec(labels_jointspace, range(21), rel_root=False)
-    handroot = labels_jointvec[0:3]
-
-    batch_halnet = convert_data_to_batch(data)
-    output_halnet = halnet(batch_halnet)
-
-    filenamebase = args.input_img_namebase
-    fig = visualize.create_fig()
-    visualize.plot_joints_from_heatmaps(output_halnet[3][0].data.numpy(), fig=fig,
-                                        title=filenamebase, data=batch_halnet[0].data.numpy())
-    visualize.show()
-
-    visualize.plot_image_and_heatmap(output_halnet[3][0][8].data.numpy(),
-                                     data=data[0].data.numpy(),
-                                     title=filenamebase + ' : index finger tip')
-    visualize.show()
-
-    labels_colorspace = conv.heatmaps_to_joints_colorspace(output_halnet[3][0].data.numpy())
-    data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
-        synthhands_handler.crop_image_get_labels(batch_halnet[0].data.numpy(), labels_colorspace, range(21))
-    visualize.plot_image(data_crop, title=filenamebase, fig=fig)
-    visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop)
-    visualize.show()
-
+    # plot HALnet predictions
+    output_halnet = halnet(conv.data_to_batch(data))
+    halnet_main_out = output_halnet[3][0].data.numpy()
+    img_numpy = data.data.numpy()
+    #plot_halnet_heatmap(halnet_main_out, img_numpy, 8, args.input_img_namebase)
+    #plot_halnet_joints_from_heatmaps(halnet_main_out, img_numpy, args.input_img_namebase)
+    data_crop = plot_halnet_joints_from_heatmaps_crop(halnet_main_out, img_numpy, args.input_img_namebase, plot=False)
+    # get JORNet outputs
+    handroot = labels_jointspace[0, 0:3]
     batch_jornet = convert_data_to_batch(data_crop)
     output_jornet = jornet(batch_jornet)
-
-    output_jornet_batch_numpy = output_jornet[7][0].data.cpu().numpy()
-    visualize.plot_3D_joints(output_jornet_batch_numpy)
-    visualize.show()
-
-    temp = np.zeros((21, 3))
-    output_batch_numpy_abs = output_jornet_batch_numpy.reshape((20, 3))
-    temp[1:, :] = output_batch_numpy_abs
-    output_batch_numpy_abs = temp
-    output_joints_colorspace = camera.joints_depth2color(
-        output_batch_numpy_abs,
-        depth_intr_matrix=synthhands_handler.DEPTH_INTR_MTX,
-        handroot=handroot)
-    visualize.plot_3D_joints(output_joints_colorspace)
-    visualize.show()
-
-    fig = visualize.plot_image(batch_halnet[0].data.numpy(), title=filenamebase)
-    visualize.plot_joints_from_colorspace(output_joints_colorspace, fig=fig)
-    visualize.show()
-
-    aa = 0
+    jornet_joints_mainout = output_jornet[7][0].data.cpu().numpy()
+    # plot depth
+    jornet_joints_mainout *= 1.1
+    jornet_joints_global = get_jornet_global_depth(jornet_joints_mainout, handroot)
+    plot_jornet_joints_global_depth(jornet_joints_global, args.input_img_namebase, gt_joints=labels_jointspace)
+    joints_colorspace = joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(640, 480))
+    plot_jornet_colorspace(joints_colorspace, args.input_img_namebase)
+    return output_halnet, output_jornet, jornet_joints_global
 
 
 # load nets
@@ -109,7 +118,9 @@ if args.input_img_namebase == '':
 elif args.dataset_folder == '':
     raise('You need to define either a dataset folder (-r) or an image file name base (-i)')
 else:
-    predict_from_image(args, halnet, jornet)
+    for i in range(10):
+        args.input_img_namebase = args.input_img_namebase[0:-1] + str(i)
+        predict_from_image(args, halnet, jornet)
 
 
 

@@ -3,7 +3,7 @@ import camera
 import pickle
 import torch
 from torch.utils.data.dataset import Dataset
-from converter import convert_color_space_label_to_heatmap
+import converter as conv
 from dataset_handler import load_dataset_split
 from io_image import change_res_image, read_RGB_image
 from scipy.spatial.distance import pdist, squareform
@@ -27,6 +27,33 @@ PROJECT_MTX =    np.array([[1.0, 0.0, 0.0, 0.0],
 
 DATASET_SPLIT_FILENAME = 'dataset_split_synthhands.p'
 
+def get_finger_name_from_joint_ix(joint_ix):
+    finger_name = ''
+    if joint_ix == 0:
+        finger_name = 'Hand root'
+    elif joint_ix <= 4:
+        finger_name = 'Thumb'
+    elif joint_ix <= 8:
+        finger_name = 'Index'
+    elif joint_ix <= 12:
+        finger_name = 'Middle'
+    elif joint_ix <= 16:
+        finger_name = 'Ring'
+    elif joint_ix <= 20:
+        finger_name = 'Little'
+    return finger_name
+
+def get_joint_acronym_from_joint_ix(joint_ix):
+    if joint_ix == 0:
+        return ''
+    acr_names = ['MCP', 'PIP', 'DIP', 'TIP']
+    acr_ix = int(np.ceil((joint_ix + 1) / 4))
+    return acr_names[acr_ix]
+
+def get_joint_name_from_ix(joint_ix):
+    joint_name = get_finger_name_from_joint_ix(joint_ix)
+    joint_name += ' ' + get_joint_acronym_from_joint_ix(joint_ix)
+    return joint_name
 
 def _get_joint_prior(dataset_folder,  prior_file_name):
     joint_prior_dict = pickle.load(open(dataset_folder + prior_file_name, "rb"))
@@ -94,7 +121,7 @@ def get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint
     labels_ix = 0
     labels_jointvec = np.zeros((len(joint_ixs) * 3,))
     for joint_ix in joint_ixs:
-        label = convert_color_space_label_to_heatmap(labels_colorspace[joint_ix, :], heatmap_res)
+        label = conv.color_space_label_to_heatmap(labels_colorspace[joint_ix, :], heatmap_res)
         label = label.astype(float)
         labels_heatmaps[labels_ix, :, :] = label
         # joint labels
@@ -149,7 +176,7 @@ def get_labels_cropped_heatmaps(labels_colorspace, joint_ixs, crop_coords, heatm
         label_v = int(label_crop_local_v * res_transf_v)
         labels_colorspace_mapped[joint_ix, 0] = label_u
         labels_colorspace_mapped[joint_ix, 1] = label_v
-        label = convert_color_space_label_to_heatmap(labels_colorspace_mapped[joint_ix, :], heatmap_res,
+        label = conv.color_space_label_to_heatmap(labels_colorspace_mapped[joint_ix, :], heatmap_res,
                                                      orig_img_res=heatmap_res)
         label = label.astype(float)
         labels_heatmaps[labels_ix, :, :] = label
