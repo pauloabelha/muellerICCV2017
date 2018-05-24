@@ -10,6 +10,7 @@ import synthhands_handler
 import argparse
 import converter as conv
 import HALNet, JORNet
+import time
 
 parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
 parser.add_argument('-i', dest='input_img_namebase', default='', type=str, required=False,
@@ -26,15 +27,21 @@ parser.add_argument('-o', dest='output_filepath', default='',
                     help='Output file for logging')
 args = parser.parse_args()
 
+def print_time(str_, time_diff):
+    print(str_ + str(round(time_diff*1000)) + ' ms')
+
 # load nets
-print('Loading HALNet from: ' + args.halnet_filepath)
+start = time.time()
 halnet, _, _, _ = trainer.load_checkpoint(filename=args.halnet_filepath,
                                           model_class=HALNet.HALNet,
                                           use_cuda=args.use_cuda)
-print('Loading JORNet from: ' + args.jornet_filepath)
+print_time('HALNet loading: ', time.time() - start)
+
+start = time.time()
 jornet, _, _, _ = trainer.load_checkpoint(filename=args.jornet_filepath,
                                           model_class=JORNet.JORNet,
                                           use_cuda=args.use_cuda)
+print_time('JORNet loading: ', time.time() - start)
 
 def plot_joints(joints_colorspace, show_legend=True, linewidth=4):
     num_joints = joints_colorspace.shape[0]
@@ -62,45 +69,59 @@ def plot_joints(joints_colorspace, show_legend=True, linewidth=4):
     return joints_colorspace
 
 def get_image_name(image_basename, ix):
+    str_to_add = str(ix)
     if ix == 0:
         ix = 1
     algs = int(np.log10(ix))
-    str_to_add = str(ix)
-    print(ix)
-    print(algs)
-    print(image_basename)
-    print(image_basename[0:-(algs+1)])
     image_basename = image_basename[:-(algs+1)] + str_to_add
-    print(image_basename)
-    print('--------------------------------------------------------')
     return image_basename
 
 joints_colorspace = np.zeros((21, 2))
 for i in range(100):
+    print('--------------------------------------------------------------------------')
+    print(args.input_img_namebase)
+
+    start = time.time()
     input_img_namebase = get_image_name(args.input_img_namebase, i)
+    print_time('Image reading: ', time.time() - start)
 
+    start = time.time()
     data = synthhands_handler._get_data(args.dataset_folder, input_img_namebase, (320, 240))
-    labels_jointspace, _, _ = synthhands_handler.\
-        get_labels_depth_and_color(args.dataset_folder, input_img_namebase)
-    handroot = labels_jointspace[0, 0:3]
+    print_time('HALNet image conversion: ', time.time() - start)
 
-    img_numpy = data.data.numpy()
+    start = time.time()
     output_halnet = halnet(conv.data_to_batch(data))
+    print_time('HALNet pass: ', time.time() - start)
+
+    start = time.time()
     halnet_main_out = output_halnet[3][0].data.numpy()
     labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
-
+    img_numpy = data.data.numpy()
     data_crop, _, _, _ = synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
     batch_jornet = conv.data_to_batch(data_crop)
+    print_time('JORNet image conversion: ', time.time() - start)
+
+    start = time.time()
     output_jornet = jornet(batch_jornet)
+    print_time('JORNet pass: ', time.time() - start)
+
+    start = time.time()
     jornet_joints_mainout = output_jornet[7][0].data.cpu().numpy()
     # plot depth
     jornet_joints_mainout *= 1.1
+    labels_jointspace, _, _ = synthhands_handler. \
+        get_labels_depth_and_color(args.dataset_folder, input_img_namebase)
+    handroot = labels_jointspace[0, 0:3]
+
     jornet_joints_global = conv.jornet_local_to_global_joints(jornet_joints_mainout, handroot)
     joints_colorspace = conv.joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(320, 240))
+    print_time('Plot image preparation: ', time.time() - start)
+
     plt.imshow(conv.numpy_to_plottable_rgb(img_numpy))
     plot_joints(joints_colorspace, show_legend=False)
     plt.title(input_img_namebase)
     plt.pause(0.01)
     plt.clf()
+    print('--------------------------------------------------------------------------')
 
 plt.show()
