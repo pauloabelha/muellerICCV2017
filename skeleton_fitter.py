@@ -188,9 +188,14 @@ def get_bone_line_args(finger_ix):
     for i in range(4):
         axis_theta = [None, None, None]
         if i < 3:
-            axis_theta[1] = (6 + (finger_ix * 4)) - i
+            if finger_ix == 0:
+                ax_ix = 1
+            else:
+                ax_ix = 2
+            axis_theta[ax_ix] = (6 + (finger_ix * 4)) - i
         if i == 2:
-            axis_theta[2] = axis_theta[1] - 1
+            axis_theta[1] = (6 + (finger_ix * 4)) - i
+            axis_theta[2] = (6 + (finger_ix * 4)) - i - 1
         if i == 3:
             axis_theta = [2, 1, 0]
         axes_theta.append(axis_theta)
@@ -219,10 +224,25 @@ def skeleton_bone_lines(joints_Theta, eps=1e-6):
     return skeleton_bone_lines
 
 
-joints_Theta = [0] * 26
-joints_Theta[5] = 0.7
-joints_Theta[6] = 0.7
+def joints_theta_ok():
+    joints_Theta = [0] * 26
+    joints_Theta[4] = 5.75
+    joints_Theta[7] = 1.57
+    joints_Theta[9] = 1.57
+    joints_Theta[10] = 0.7
+    joints_Theta[11] = 1.57
+    joints_Theta[12] = 0.7
+    joints_Theta[13] = 1.57
+    joints_Theta[14] = 0.7
+    joints_Theta[15] = 1.57
+    joints_Theta[16] = 0.7
+    joints_Theta[17] = 1.57
+    joints_Theta[18] = 0.7
+    joints_Theta[19] = 1.57
+    joints_Theta[21] = 1.57
+    return joints_Theta
 
+joints_Theta = joints_theta_ok()
 skeleton_bone_lines = skeleton_bone_lines(joints_Theta)
 
 
