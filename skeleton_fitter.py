@@ -117,7 +117,7 @@ def skeleton_bone_angles():
     bone_angles[16] = 0.785
     return bone_angles
 
-def plot_bones(bones):
+def plot_bone_line(bones):
     fig = plt.figure()
     ax = Axes3D(fig)
     ax.set_color_cycle('rgbyk')
@@ -138,22 +138,47 @@ def plot_bones(bones):
     ax.set_zlim3d([-150, 150])
     plt.show()
 
-def aaaaaa(bone_lengths, bone_ix, theta_ixs, children_points):
+def plot_bone_lines(bone_lines):
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.set_color_cycle('rgby')
+    for i in range(len(bone_lines)):
+        ax.plot([0, bone_lines[i][0][0]],
+                [0, bone_lines[i][0][1]],
+                [0, bone_lines[i][0][2]])
+        j = 1
+        while j < len(bone_lines[i]):
+            ax.plot([bone_lines[i][j - 1][0], bone_lines[i][j][0]],
+                    [bone_lines[i][j - 1][1], bone_lines[i][j][1]],
+                    [bone_lines[i][j - 1][2], bone_lines[i][j][2]])
+            j += 1
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim3d([-150, 150])
+    ax.set_ylim3d([-150, 150])
+    ax.set_zlim3d([-150, 150])
+    plt.show()
+
+def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta_ix, children_points, eps=1e-6):
     main_point = [bone_lengths[bone_ix][0], 0, 0]
-    for child_point in children_points:
-        child_point += main_point
-    thumb_mcp_angle_y = joints_Theta[theta_ixs[0]]
-    thumb_mcp_angle_z = joints_Theta[theta_ixs[1]]
-    bone_thumb_mcp_rot_y = get_rot_mtx(1, thumb_mcp_angle_y)
+    for i in range(len(children_points)):
+        children_points[i] += main_point
+    rotations = [None, None, None]
+    for ax_ix in range(3):
+        theta_ix = axes_theta_ix[ax_ix]
+        if theta_ix is None:
+            continue
+        rotations[ax_ix] = get_rot_mtx(ax_ix, joints_Theta[theta_ix])
     if bone_angles[bone_ix] > eps:
-        bone_thumb_mcp_rot_y = np.dot(bone_thumb_mcp_rot_y, get_rot_mtx(1, bone_angles[bone_ix]))
-    bone_thumb_mcp_rot_z = get_rot_mtx(2, thumb_mcp_angle_z)
-    thumb_mcp_pt = np.dot(bone_thumb_mcp_rot_y, thumb_mcp_pt)
-    thumb_mcp_pt = np.dot(bone_thumb_mcp_rot_z, thumb_mcp_pt)
-    thumb_dip_pt = np.dot(bone_thumb_mcp_rot_y, thumb_dip_pt)
-    thumb_dip_pt = np.dot(bone_thumb_mcp_rot_z, thumb_dip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_mcp_rot_y, thumb_tip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_mcp_rot_z, thumb_tip_pt)
+        rotations[1] = np.dot(rotations[1], get_rot_mtx(1, bone_angles[bone_ix]))
+    for rotation in rotations:
+        if rotation is None:
+            continue
+        main_point = np.dot(rotation, main_point)
+        for i in range(len(children_points)):
+            children_points[i] = np.dot(rotation, children_points[i])
+    return main_point, children_points
 
 def skeleton_pose_from_angles(joints_Theta, eps=1e-6):
     '''
@@ -164,72 +189,53 @@ def skeleton_pose_from_angles(joints_Theta, eps=1e-6):
     bone_lengths = skeleton_bone_lengths()
     bone_angles = skeleton_bone_angles()
     # thumb tip
-    bone_ix = 3
-    theta_ix = 6
-    thumb_tip_pt = np.array([bone_lengths[bone_ix][0], 0, 0])
-    thumb_tip_angle = joints_Theta[theta_ix]
-    bone_thumb_tip_rot = get_rot_mtx(1, thumb_tip_angle)
-    if bone_angles[bone_ix] > eps:
-        bone_thumb_tip_rot *= get_rot_mtx(1, bone_angles[3])
-    thumb_tip_pt = np.dot(bone_thumb_tip_rot, thumb_tip_pt)
+    thumb_tip_pt, _ = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 3, [None, 6, None], [])
     # thumb dip
-    bone_ix = 2
-    theta_ix = 5
-    thumb_dip_pt = np.array([bone_lengths[bone_ix][0], 0, 0])
-    thumb_tip_pt += thumb_dip_pt
-    thumb_dip_angle = joints_Theta[theta_ix]
-    bone_thumb_dip_rot = get_rot_mtx(1, thumb_dip_angle)
-    if bone_angles[bone_ix] > eps:
-        bone_thumb_dip_rot = np.dot(bone_thumb_dip_rot, get_rot_mtx(1, bone_angles[bone_ix]))
-    thumb_dip_pt = np.dot(bone_thumb_dip_rot, thumb_dip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_dip_rot, thumb_tip_pt)
+    thumb_dip_pt, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 2, [None, 5, None], [thumb_tip_pt])
+    thumb_tip_pt = children_points[0]
     # thumb mcp
-    bone_ix = 1
-    theta_ixs = [4, 3]
-    thumb_mcp_pt = [bone_lengths[bone_ix][0], 0, 0]
-    thumb_tip_pt += thumb_mcp_pt
-    thumb_dip_pt += thumb_mcp_pt
-    thumb_mcp_angle_y = joints_Theta[theta_ixs[0]]
-    thumb_mcp_angle_z = joints_Theta[theta_ixs[1]]
-    bone_thumb_mcp_rot_y = get_rot_mtx(1, thumb_mcp_angle_y)
-    if bone_angles[bone_ix] > eps:
-        bone_thumb_mcp_rot_y = np.dot(bone_thumb_mcp_rot_y, get_rot_mtx(1, bone_angles[bone_ix]))
-    bone_thumb_mcp_rot_z = get_rot_mtx(2, thumb_mcp_angle_z)
-    thumb_mcp_pt = np.dot(bone_thumb_mcp_rot_y, thumb_mcp_pt)
-    thumb_mcp_pt = np.dot(bone_thumb_mcp_rot_z, thumb_mcp_pt)
-    thumb_dip_pt = np.dot(bone_thumb_mcp_rot_y, thumb_dip_pt)
-    thumb_dip_pt = np.dot(bone_thumb_mcp_rot_z, thumb_dip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_mcp_rot_y, thumb_tip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_mcp_rot_z, thumb_tip_pt)
+    thumb_mcp_pt, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 1, [None, 4, 3], [thumb_dip_pt, thumb_tip_pt])
+    thumb_dip_pt = children_points[0]
+    thumb_tip_pt = children_points[1]
     # thumb root
-    bone_ix = 0
-    theta_ixs = [2, 1, 0]
-    thumb_root_pt = [bone_lengths[bone_ix][0], 0, 0]
-    thumb_tip_pt += thumb_root_pt
-    thumb_dip_pt += thumb_root_pt
-    thumb_mcp_pt += thumb_root_pt
-    thumb_root_angles = [0] * 3
-    thumb_root_angles[0] = joints_Theta[theta_ixs[0]]
-    thumb_root_angles[1] = joints_Theta[theta_ixs[1]]
-    thumb_root_angles[2] = joints_Theta[theta_ixs[2]]
-    bone_thumb_root_rot_x = get_rot_mtx(0, thumb_root_angles[0])
-    bone_thumb_root_rot_y = get_rot_mtx(1, thumb_root_angles[1])
-    bone_thumb_root_rot_z = get_rot_mtx(2, thumb_root_angles[0])
-    if bone_angles[bone_ix] > eps:
-        bone_thumb_root_rot_y = np.dot(bone_thumb_root_rot_y, get_rot_mtx(1, bone_angles[bone_ix]))
-    thumb_root_pt = np.dot(bone_thumb_root_rot_y, thumb_root_pt)
-    thumb_mcp_pt = np.dot(bone_thumb_root_rot_y, thumb_mcp_pt)
-    thumb_dip_pt = np.dot(bone_thumb_root_rot_y, thumb_dip_pt)
-    thumb_tip_pt = np.dot(bone_thumb_root_rot_y, thumb_tip_pt)
-    plot_bones([thumb_root_pt, thumb_mcp_pt, thumb_dip_pt, thumb_tip_pt])
+    thumb_root_pt, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 0, [2, 1, 0], [thumb_mcp_pt, thumb_dip_pt, thumb_tip_pt])
+    thumb_mcp_pt = children_points[0]
+    thumb_dip_pt = children_points[1]
+    thumb_tip_pt = children_points[2]
+    thumb_bone_line = [thumb_root_pt, thumb_mcp_pt, thumb_dip_pt, thumb_tip_pt]
+    # index tip
+    index_tip_pt, _ = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 7, [None, 10, None], [])
+    # index dip
+    index_dip_pt, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 6, [None, 9, None], [index_tip_pt])
+    index_tip_pt = children_points[0]
+    # index mcp
+    index_mcp_pt, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 5, [None, 8, 7], [index_dip_pt, index_tip_pt])
+    index_dip_pt = children_points[0]
+    index_tip_pt = children_points[1]
+    # index root
+    index_root, children_points = update_point_and_children(
+        joints_Theta, bone_lengths, bone_angles, 4, [2, 1, 0], [index_mcp_pt, index_dip_pt, index_tip_pt])
+    index_mcp_pt = children_points[0]
+    index_dip_pt = children_points[1]
+    index_tip_pt = children_points[2]
+    index_bone_line = [index_root, index_mcp_pt, index_dip_pt, index_tip_pt]
+
+    plot_bone_lines([thumb_bone_line, index_bone_line])
     aa = 0
 
 
 
 
 joints_Theta = [0] * 26
-joints_Theta[5] = 1.57
-joints_Theta[6] = 1.57
+joints_Theta[5] = 0
+joints_Theta[6] = 0
 
 skeleton_can_pose = skeleton_pose_from_angles(joints_Theta)
 
