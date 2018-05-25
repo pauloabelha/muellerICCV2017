@@ -2,6 +2,7 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D #<-- Note the capitalization!
+import operator
 
 class Joint(object):
     def __init__(self, bone=None, axes=None):
@@ -78,7 +79,7 @@ def skeleton_bone_lengths():
     bone_lengths[2] = 40
     bone_lengths[3] = 30
     # index
-    bone_lengths[4] = 120
+    bone_lengths[4] = 110
     bone_lengths[5] = 40
     bone_lengths[6] = 20
     bone_lengths[7] = 20
@@ -180,7 +181,22 @@ def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, 
             children_points[i] = np.dot(rotation, children_points[i])
     return main_point, children_points
 
-def skeleton_pose_from_angles(joints_Theta, eps=1e-6):
+def get_bone_line_args(finger_ix):
+    bone_ixs = [3, 2, 1, 0]
+    bone_ixs = [x + (finger_ix * 4) for x in bone_ixs]
+    axes_theta = []
+    for i in range(4):
+        axis_theta = [None, None, None]
+        if i < 3:
+            axis_theta[1] = (6 + (finger_ix * 4)) - i
+        if i == 2:
+            axis_theta[2] = axis_theta[1] - 1
+        if i == 3:
+            axis_theta = [2, 1, 0]
+        axes_theta.append(axis_theta)
+    return bone_ixs, axes_theta
+
+def skeleton_bone_lines(joints_Theta, eps=1e-6):
     '''
 
     :param joints_Theta:
@@ -188,55 +204,25 @@ def skeleton_pose_from_angles(joints_Theta, eps=1e-6):
     '''
     bone_lengths = skeleton_bone_lengths()
     bone_angles = skeleton_bone_angles()
-    # thumb tip
-    thumb_tip_pt, _ = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 3, [None, 6, None], [])
-    # thumb dip
-    thumb_dip_pt, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 2, [None, 5, None], [thumb_tip_pt])
-    thumb_tip_pt = children_points[0]
-    # thumb mcp
-    thumb_mcp_pt, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 1, [None, 4, 3], [thumb_dip_pt, thumb_tip_pt])
-    thumb_dip_pt = children_points[0]
-    thumb_tip_pt = children_points[1]
-    # thumb root
-    thumb_root_pt, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 0, [2, 1, 0], [thumb_mcp_pt, thumb_dip_pt, thumb_tip_pt])
-    thumb_mcp_pt = children_points[0]
-    thumb_dip_pt = children_points[1]
-    thumb_tip_pt = children_points[2]
-    thumb_bone_line = [thumb_root_pt, thumb_mcp_pt, thumb_dip_pt, thumb_tip_pt]
-    # index tip
-    index_tip_pt, _ = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 7, [None, 10, None], [])
-    # index dip
-    index_dip_pt, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 6, [None, 9, None], [index_tip_pt])
-    index_tip_pt = children_points[0]
-    # index mcp
-    index_mcp_pt, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 5, [None, 8, 7], [index_dip_pt, index_tip_pt])
-    index_dip_pt = children_points[0]
-    index_tip_pt = children_points[1]
-    # index root
-    index_root, children_points = update_point_and_children(
-        joints_Theta, bone_lengths, bone_angles, 4, [2, 1, 0], [index_mcp_pt, index_dip_pt, index_tip_pt])
-    index_mcp_pt = children_points[0]
-    index_dip_pt = children_points[1]
-    index_tip_pt = children_points[2]
-    index_bone_line = [index_root, index_mcp_pt, index_dip_pt, index_tip_pt]
-
-    plot_bone_lines([thumb_bone_line, index_bone_line])
-    aa = 0
-
-
+    fingers_bone_lines = []
+    for finger_ix in [0, 1, 2, 3, 4]:
+        bone_ixs, axes_thetas = get_bone_line_args(finger_ix)
+        finger_points = []
+        for i in range(4):
+            bone_ix = bone_ixs[i]
+            axes_theta = axes_thetas[i]
+            finger_main_pt, finger_children = update_point_and_children(
+                joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta, finger_points)
+            finger_points = [finger_main_pt] + finger_points
+        fingers_bone_lines.append(finger_points)
+    plot_bone_lines(fingers_bone_lines)
+    return skeleton_bone_lines
 
 
 joints_Theta = [0] * 26
-joints_Theta[5] = 0
-joints_Theta[6] = 0
+joints_Theta[5] = 0.7
+joints_Theta[6] = 0.7
 
-skeleton_can_pose = skeleton_pose_from_angles(joints_Theta)
+skeleton_bone_lines = skeleton_bone_lines(joints_Theta)
 
 
