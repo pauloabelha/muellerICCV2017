@@ -1,8 +1,8 @@
-import numpy as np
+import autograd.numpy as np  # Thinly-wrapped numpy
+from autograd import grad
 import math
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D #<-- Note the capitalization!
-import operator
 
 class Joint(object):
     def __init__(self, bone=None, axes=None):
@@ -139,14 +139,17 @@ def plot_bone_line(bones):
     ax.set_zlim3d([-150, 150])
     plt.show()
 
-def plot_bone_lines(bone_lines):
-    fig = plt.figure()
+def plot_bone_lines(bone_lines, handroot=None, fig=None, show=True, lim=200):
+    if fig is None:
+        fig = plt.figure()
     ax = Axes3D(fig)
     ax.set_color_cycle('rgby')
+    if handroot is None:
+        handroot = np.zeros((1, 3))
     for i in range(len(bone_lines)):
-        ax.plot([0, bone_lines[i][0][0]],
-                [0, bone_lines[i][0][1]],
-                [0, bone_lines[i][0][2]])
+        ax.plot([handroot[0], bone_lines[i][0][0]],
+                [handroot[1], bone_lines[i][0][1]],
+                [handroot[2], bone_lines[i][0][2]])
         j = 1
         while j < len(bone_lines[i]):
             ax.plot([bone_lines[i][j - 1][0], bone_lines[i][j][0]],
@@ -156,10 +159,12 @@ def plot_bone_lines(bone_lines):
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    ax.set_xlim3d([-150, 150])
-    ax.set_ylim3d([-150, 150])
-    ax.set_zlim3d([-150, 150])
-    plt.show()
+    ax.set_xlim3d([-lim, lim])
+    ax.set_ylim3d([-lim, lim])
+    ax.set_zlim3d([-lim, lim])
+    if show:
+        plt.show()
+    return fig
 
 def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta_ix, children_points, eps=1e-6):
     main_point = [bone_lengths[bone_ix][0], 0, 0]
@@ -173,6 +178,11 @@ def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, 
         rotations[ax_ix] = get_rot_mtx(ax_ix, joints_Theta[theta_ix])
     if bone_angles[bone_ix] > eps:
         rotations[1] = np.dot(rotations[1], get_rot_mtx(1, bone_angles[bone_ix]))
+    # add hand root rotation
+    if bone_ix % 4 == 0:
+        for i in range(3):
+            if joints_Theta[i] > eps:
+                rotations = [get_rot_mtx(i, joints_Theta[i])] + rotations
     for rotation in rotations:
         if rotation is None:
             continue
@@ -219,9 +229,20 @@ def skeleton_bone_lines(joints_Theta, eps=1e-6):
             finger_main_pt, finger_children = update_point_and_children(
                 joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta, finger_points)
             finger_points = [finger_main_pt] + finger_points
+        for i in range(4):
+            finger_points[i] += joints_Theta[-3:]
         fingers_bone_lines.append(finger_points)
-    plot_bone_lines(fingers_bone_lines)
-    return skeleton_bone_lines
+    return fingers_bone_lines
+
+def fingers_bone_lines_to_matrix(fingers_bone_lines, handroot):
+    hand_matrix = np.zeros((21, 3))
+    ix = 1
+    for i in range(5):
+        for j in range(4):
+            hand_matrix[ix, :] = fingers_bone_lines[i][j]
+            ix += 1
+    hand_matrix[0, :] = handroot
+    return hand_matrix
 
 
 def joints_theta_ok():
@@ -240,9 +261,36 @@ def joints_theta_ok():
     joints_Theta[18] = 0.7
     joints_Theta[19] = 1.57
     joints_Theta[21] = 1.57
+
+    joints_Theta[23] = 100
     return joints_Theta
 
 joints_Theta = joints_theta_ok()
-skeleton_bone_lines = skeleton_bone_lines(joints_Theta)
 
+def joints_Theta_to_hand_matrix(joints_Theta):
+    fingers_bone_lines = skeleton_bone_lines(joints_Theta)
+    hand_matrix = fingers_bone_lines_to_matrix(fingers_bone_lines, joints_Theta[-3:])
+    return hand_matrix
+
+def animate_skeleton(pausing=0.2):
+    fig = None
+    for h in range(3):
+        joints_Theta = [0] * 26
+        joints_Theta[h] = 0.75
+        for i in range(23):
+            joints_Theta[i+3] = 0.75
+            fingers_bone_lines = skeleton_bone_lines(joints_Theta)
+            fig = plot_bone_lines(fingers_bone_lines, handroot=joints_Theta[-3:], fig=fig, show=False)
+            plt.pause(pausing)
+            plt.clf()
+    plt.show()
+
+def E_pos3D(joints_Theta, joints_pred):
+    hand_matrix = joints_Theta_to_hand_matrix(joints_Theta)
+    dist = np.abs((hand_matrix - joints_pred)).sum()
+    return dist
+
+grad_E_pos3D = grad(E_pos3D(joints_Theta, np.zeros((21, 3))))
+
+print(grad_E_pos3D(joints_Theta, np.zeros((21, 3))))
 
