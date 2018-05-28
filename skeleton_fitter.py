@@ -1,6 +1,6 @@
 import autograd.numpy as np  # Thinly-wrapped numpy
+from autograd.builtins import list
 from autograd import grad
-import math
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D #<-- Note the capitalization!
 
@@ -16,9 +16,9 @@ def rotation_matrix(axis, theta):
     the given axis by theta radians.
     """
     axis = np.asarray(axis)
-    axis = axis/math.sqrt(np.dot(axis, axis))
-    a = math.cos(theta/2.0)
-    b, c, d = -axis*math.sin(theta/2.0)
+    axis = axis/np.sqrt(np.dot(axis, axis))
+    a = np.cos(theta/2.0)
+    b, c, d = -axis*np.sin(theta/2.0)
     aa, bb, cc, dd = a*a, b*b, c*c, d*d
     bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
     return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
@@ -29,8 +29,8 @@ def get_rot_mtx(axis, theta):
     if theta == 0.0:
         return np.eye(3)
     rot_mtx = np.eye(3)
-    cos_theta = math.cos(theta)
-    sin_theta = math.sin(theta)
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
     if axis == 0:
         rot_mtx[1, 1] = cos_theta
         rot_mtx[1, 2] = -sin_theta
@@ -194,7 +194,7 @@ def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, 
 def get_bone_line_args(finger_ix):
     bone_ixs = [3, 2, 1, 0]
     bone_ixs = [x + (finger_ix * 4) for x in bone_ixs]
-    axes_theta = []
+    axes_theta = list([])
     for i in range(4):
         axis_theta = [None, None, None]
         if i < 3:
@@ -219,7 +219,7 @@ def skeleton_bone_lines(joints_Theta, eps=1e-6):
     '''
     bone_lengths = skeleton_bone_lengths()
     bone_angles = skeleton_bone_angles()
-    fingers_bone_lines = []
+    bone_lines = list([])
     for finger_ix in [0, 1, 2, 3, 4]:
         bone_ixs, axes_thetas = get_bone_line_args(finger_ix)
         finger_points = []
@@ -229,19 +229,13 @@ def skeleton_bone_lines(joints_Theta, eps=1e-6):
             finger_main_pt, finger_children = update_point_and_children(
                 joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta, finger_points)
             finger_points = [finger_main_pt] + finger_points
-        for i in range(4):
-            finger_points[i] += joints_Theta[-3:]
-        fingers_bone_lines.append(finger_points)
-    return fingers_bone_lines
+        finger_points = np.array(finger_points)
+        finger_points = finger_points + joints_Theta[-3:]
+        bone_lines.append(finger_points)
+    return bone_lines
 
 def fingers_bone_lines_to_matrix(fingers_bone_lines, handroot):
-    hand_matrix = np.zeros((21, 3))
-    ix = 1
-    for i in range(5):
-        for j in range(4):
-            hand_matrix[ix, :] = fingers_bone_lines[i][j]
-            ix += 1
-    hand_matrix[0, :] = handroot
+    hand_matrix = np.array(fingers_bone_lines).reshape((20, 3))
     return hand_matrix
 
 
@@ -265,8 +259,6 @@ def joints_theta_ok():
     joints_Theta[23] = 100
     return joints_Theta
 
-joints_Theta = joints_theta_ok()
-
 def joints_Theta_to_hand_matrix(joints_Theta):
     fingers_bone_lines = skeleton_bone_lines(joints_Theta)
     hand_matrix = fingers_bone_lines_to_matrix(fingers_bone_lines, joints_Theta[-3:])
@@ -275,7 +267,7 @@ def joints_Theta_to_hand_matrix(joints_Theta):
 def animate_skeleton(pausing=0.2):
     fig = None
     for h in range(3):
-        joints_Theta = [0] * 26
+        joints_Theta = [0.0] * 26
         joints_Theta[h] = 0.75
         for i in range(23):
             joints_Theta[i+3] = 0.75
@@ -290,7 +282,48 @@ def E_pos3D(joints_Theta, joints_pred):
     dist = np.abs((hand_matrix - joints_pred)).sum()
     return dist
 
-grad_E_pos3D = grad(E_pos3D(joints_Theta, np.zeros((21, 3))))
+def get_example_target_joints():
+    joints_vec = np.array([
+                 [ 3.81632347e+01,  1.14704266e+01, -3.37704353e+01],
+                 [ 6.10587921e+01,  2.33903408e+01, -6.82850800e+01],
+                 [ 8.05751648e+01,  4.75567703e+01, -8.45160522e+01],
+                 [ 9.82698898e+01,  7.10361176e+01, -9.79136353e+01],
+                 [ 8.31332245e+01,  1.65777664e+01, -1.59413128e+01],
+                 [ 1.18601105e+02,  3.94201927e+01, -2.28066750e+01],
+                 [ 1.35169754e+02,  6.50885391e+01, -3.82870293e+01],
+                 [ 1.42985275e+02,  8.90216675e+01, -5.33211937e+01],
+                 [ 7.25996475e+01,  2.82628822e+01,  5.69833565e+00],
+                 [ 1.12488670e+02,  5.47043686e+01, -1.17148340e+00],
+                 [ 1.34326385e+02,  7.71675949e+01, -1.57214651e+01],
+                 [ 1.37153976e+02,  9.35943451e+01, -3.92123222e+01],
+                 [ 6.31909981e+01,  3.92918282e+01,  2.07988148e+01],
+                 [ 9.71118088e+01,  7.10300827e+01,  1.67733021e-02],
+                 [ 1.13407402e+02,  9.21796188e+01, -1.90750809e+01],
+                 [ 1.07807945e+02,  1.04189819e+02, -4.57797546e+01],
+                 [ 5.04926300e+01,  4.86349411e+01,  3.22667580e+01],
+                 [ 6.29547806e+01,  7.22900848e+01,  1.90970001e+01],
+                 [ 7.12234039e+01,  8.81342850e+01,  7.43657589e+00],
+                 [ 8.01767883e+01,  1.06043503e+02, -4.03247738e+00]])
+    return joints_vec
 
-print(grad_E_pos3D(joints_Theta, np.zeros((21, 3))))
+
+joints_pred = get_example_target_joints()
+grad_E_pos3D = grad(E_pos3D, 0)
+lr = 0.1
+joints_Theta = np.array([0.0] * 26)
+prev_loss = 0.
+for i in range(100000):
+    grad_calc = grad_E_pos3D(joints_Theta, joints_pred)
+    joints_Theta -= lr * grad_calc
+    loss = E_pos3D(joints_Theta, joints_pred)
+    diff_loss = np.abs((loss - prev_loss))
+    if loss < 100:
+        print('Loss diff is too small')
+        break
+    if i > 0 and i % 1 == 0:
+        print('Iter {} : Loss {} : Loss Diff {}'.format(i, loss, diff_loss))
+    prev_loss = loss
+
+
+print(joints_Theta)
 

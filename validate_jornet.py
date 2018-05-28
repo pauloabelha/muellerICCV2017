@@ -73,6 +73,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             visualize.show()
 
             output_batch_numpy = output[7][i].data.cpu().numpy()
+            print('\n-------------------------------')
+            print(output_batch_numpy.reshape((20, 3)))
+            print('-------------------------------')
             fig, ax = visualize.plot_3D_joints(target_joints[i])
             visualize.plot_3D_joints(output_batch_numpy, fig=fig, ax=ax, color='C6')
 
@@ -89,48 +92,6 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
                 handroot=target_handroot[i].data.cpu().numpy())
             visualize.plot_3D_joints(output_joints_colorspace)
             visualize.show()
-
-            #image_rgbd = conv.numpy_to_plottable_rgb(data[i].data.numpy())
-            #visualize.plot_joints_from_colorspace(output_joints_colorspace,
-            #                                      title=filenamebase,
-            #                                      fig=fig,
-            #                                      data=image_rgbd)
-            #visualize.show()
-
-
-            #filenamebase_idx = (batch_idx * control_vars['max_mem_batch']) + i
-            #filenamebase = valid_loader.dataset.get_filenamebase(filenamebase_idx)
-            #visualize.plot_image(data[i].data.cpu().numpy(), title=filenamebase)
-            #target_joints_colorspace = camera.joints_depth2color(output[7][i].data.cpu().numpy().reshape((21, 3)),
-            #                                                     target_handroot.data.cpu().numpy())
-            #visualize.plot_3D_joints(target_joints_colorspace)
-            #fig = visualize.create_fig()
-            #visualize.plot_joints_from_heatmaps(target_heatmaps[i].data.cpu().numpy(),
-            #                                    title='GT joints: ' + filenamebase, data=data[i].data.cpu().numpy())
-            #visualize.plot_joints_from_heatmaps(output[3][i].data.cpu().numpy(),
-            #                                    title='Pred joints: ' + filenamebase, data=data[i].data.cpu().numpy())
-            #visualize.plot_image_and_heatmap(output[3][i][4].data.numpy(),
-            #                                 data=data[i].data.numpy(),
-            #                                 title='Thumb tib heatmap: ' + filenamebase)
-            #print('\n-----------------------------------------')
-            #aa = output[3][i][8].data.numpy()
-            #aa = np.exp(aa)
-            #print(np.min(aa))
-            #bb = np.unravel_index(np.argmax(aa), aa.shape)
-            #print(bb)
-            #print(np.max(aa))
-            #print(model.cross_entropy)
-            #print('-----------------------------------------')
-            #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_heatmap')
-            #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
-            #labels_colorspace = conv.heatmaps_to_joints_colorspace(output[3][i].data.numpy())
-            #data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
-            #    io_data.crop_image_get_labels(data[i].data.numpy(), labels_colorspace, range(21))
-            #data_crop_img = conv.numpy_to_plottable_rgb(data_crop)
-            #visualize.plot_image(data_crop_img, title=filenamebase, fig=fig)
-            #visualize.plot_joints_from_colorspace(labels_colorspace, title=filenamebase, fig=fig, data=data_crop_img)
-            #visualize.savefig('/home/paulo/' + filenamebase.replace('/', '_') + '_crop')
-            #visualize.show()
             aa1 = target_joints[i].data.cpu().numpy().reshape((20, 3))
             aa2 = output[7][i].data.cpu().numpy().reshape((20, 3))
             print('\n----------------------------------')
