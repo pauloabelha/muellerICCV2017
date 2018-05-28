@@ -264,11 +264,11 @@ def joints_Theta_to_hand_matrix(joints_Theta):
     hand_matrix = fingers_bone_lines_to_matrix(fingers_bone_lines, joints_Theta[-3:])
     return hand_matrix
 
-def animate_skeleton(pausing=0.2):
+def animate_skeleton(pausing=0.05):
     fig = None
     for h in range(3):
         joints_Theta = [0.0] * 26
-        joints_Theta[h] = 0.75
+        joints_Theta[h] = 1.57
         for i in range(23):
             joints_Theta[i+3] = 0.75
             fingers_bone_lines = skeleton_bone_lines(joints_Theta)
@@ -307,23 +307,5 @@ def get_example_target_joints():
     return joints_vec
 
 
-joints_pred = get_example_target_joints()
-grad_E_pos3D = grad(E_pos3D, 0)
-lr = 0.1
-joints_Theta = np.array([0.0] * 26)
-prev_loss = 0.
-for i in range(100000):
-    grad_calc = grad_E_pos3D(joints_Theta, joints_pred)
-    joints_Theta -= lr * grad_calc
-    loss = E_pos3D(joints_Theta, joints_pred)
-    diff_loss = np.abs((loss - prev_loss))
-    if loss < 100:
-        print('Loss diff is too small')
-        break
-    if i > 0 and i % 1 == 0:
-        print('Iter {} : Loss {} : Loss Diff {}'.format(i, loss, diff_loss))
-    prev_loss = loss
-
-
-print(joints_Theta)
+animate_skeleton()
 
