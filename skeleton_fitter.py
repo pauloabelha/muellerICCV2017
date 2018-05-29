@@ -50,6 +50,41 @@ def get_rot_mtx(axis, theta):
         return None
     return rot_mtx
 
+def rotate_diff_x(vec, ix_start, theta):
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    x = vec[0]
+    y = cos_theta * vec[ix_start+1] - sin_theta * vec[ix_start+2]
+    z = sin_theta * vec[ix_start+1] + cos_theta * vec[ix_start+2]
+    return x, y, z
+
+def rotate_diff_y(vec, ix_start, theta):
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    x = cos_theta * vec[ix_start] + sin_theta * vec[ix_start+2]
+    y = vec[1]
+    z = -sin_theta * vec[ix_start] + cos_theta * vec[ix_start+2]
+    return x, y, z
+
+def rotate_diff_z(vec, ix_start, theta):
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    x = cos_theta * vec[ix_start] - sin_theta * vec[ix_start+1]
+    y = sin_theta * vec[ix_start] + cos_theta * vec[ix_start+1]
+    z = vec[ix_start+2]
+    return x, y, z
+
+def rotate_diff_axis(axis, vec, ix_start, theta):
+    if axis == 0:
+        x, y, z = rotate_diff_x(vec, ix_start, theta)
+    elif axis == 1:
+        x, y, z = rotate_diff_y(vec, ix_start, theta)
+    elif axis == 2:
+        x, y, z = rotate_diff_z(vec, ix_start, theta)
+    else:
+        return None
+    return np.array([x, y, z])
+
 def skeleton_joints():
     x_axis = [1.0, 0.0, 0.0]
     y_axis = [0.0, 1.0, 0.0]
@@ -93,7 +128,7 @@ def skeleton_bone_lengths():
     bone_lengths[13] = 50
     bone_lengths[14] = 32
     bone_lengths[15] = 29
-    # little
+    # little1
     bone_lengths[16] = 77
     bone_lengths[17] = 29
     bone_lengths[18] = 21
@@ -191,8 +226,6 @@ def plot_hand_matrix(hand_matrix, fig=None, show=True, lim=200):
         plt.show()
     return fig
 
-
-
 def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta_ix, children_points, eps=1e-6):
     main_point = [bone_lengths[bone_ix][0], 0, 0]
     for i in range(len(children_points)):
@@ -217,6 +250,74 @@ def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, 
         for i in range(len(children_points)):
             children_points[i] = np.dot(rotation, children_points[i])
     return main_point, children_points
+
+def update_point_and_children2(joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta_ix, children_points, eps=1e-6):
+    main_point = [bone_lengths[bone_ix][0], 0, 0]
+    for i in range(len(children_points)):
+        children_points[i] += main_point
+    rotations = [None, None, None]
+    for ax_ix in range(3):
+        theta_ix = axes_theta_ix[ax_ix]
+        if theta_ix is None:
+            continue
+        if abs(joints_Theta[theta_ix]) > eps:
+            rotations[ax_ix] = get_rot_mtx(ax_ix, joints_Theta[theta_ix])
+    if bone_angles[bone_ix] > eps:
+        if rotations[1] is None:
+            rotations[1] = get_rot_mtx(1, bone_angles[bone_ix])
+        else:
+            rotations[1] = np.dot(rotations[1], get_rot_mtx(1, bone_angles[bone_ix]))
+    # add hand root rotation
+    if bone_ix % 4 == 0:
+        for i in range(3):
+            if joints_Theta[i] > eps:
+                rotations = [get_rot_mtx(i, joints_Theta[i])] + rotations
+
+    main_point2 = main_point
+    children_points2 = children_points
+    if bone_ix % 4 == 0:
+        for i in range(3):
+            ix = 2-i
+            if joints_Theta[ix] > eps:
+                rot_mtx = get_rot_mtx(ix, joints_Theta[ix])
+                #print('--------------------------------------------------------')
+                #print(rot_mtx)
+                main_point2 = rotate_diff_axis(ix, main_point2, 0, joints_Theta[ix])
+                for j in range(len(children_points2)):
+                    children_points2[j] = rotate_diff_axis(ix, children_points2[j], 0, joints_Theta[ix])
+    for ax_ix in range(3):
+        theta_ix = axes_theta_ix[ax_ix]
+        if theta_ix is None:
+            continue
+        if ax_ix == 1: # bone rotation
+            if bone_angles[bone_ix] > eps:
+                rot_mtx = get_rot_mtx(1,  bone_angles[bone_ix])
+                #print('--------------------------------------------------------')
+                #print(rot_mtx)
+                main_point2 = rotate_diff_axis(1, main_point2, 0, bone_angles[bone_ix])
+                for j in range(len(children_points2)):
+                    children_points2[j] = rotate_diff_axis(1, children_points2[j], 0, bone_angles[bone_ix])
+        aa = joints_Theta[theta_ix]
+        rot_mtx = get_rot_mtx(ax_ix, joints_Theta[theta_ix])
+        #print('--------------------------------------------------------')
+        #print(rot_mtx)
+        main_point2 = rotate_diff_axis(ax_ix, main_point2, 0, joints_Theta[theta_ix])
+        for j in range(len(children_points2)):
+            children_points2[j] = rotate_diff_axis(ax_ix, children_points2[j], 0, joints_Theta[theta_ix])
+
+
+    for rotation in rotations:
+        if rotation is None:
+            continue
+        main_point = np.dot(rotation, main_point)
+        for i in range(len(children_points)):
+            children_points[i] = np.dot(rotation, children_points[i])
+
+    print(np.linalg.norm(main_point - main_point2))
+    #for rotation in rotations:
+    #    print('-----------------------------------------------------')
+    #    print(rotation)
+    return main_point2, children_points2
 
 def get_bone_line_args(finger_ix):
     bone_ixs = [3, 2, 1, 0]
@@ -291,17 +392,21 @@ def joints_Theta_to_hand_matrix(joints_Theta):
     hand_matrix = fingers_bone_lines_to_matrix(fingers_bone_lines, joints_Theta[-3:])
     return hand_matrix
 
-def animate_skeleton(pausing=0.05):
+def animate_skeleton(pausing=0.001):
     fig = None
     for h in range(3):
         joints_Theta = [0.0] * 26
-        joints_Theta[h] = 1.57
+        ix = 2 -h
+        joints_Theta[ix] = 1.57
         for i in range(23):
-            joints_Theta[i+3] = 0.75
-            fingers_bone_lines = skeleton_bone_lines(joints_Theta)
-            fig = plot_bone_lines(fingers_bone_lines, handroot=joints_Theta[-3:], fig=fig, show=False)
-            plt.pause(pausing)
-            plt.clf()
+            for j in range(10):
+                if i % 4 == 0:
+                    continue
+                joints_Theta[i+3] = 0.1 * j
+                fingers_bone_lines = skeleton_bone_lines(joints_Theta)
+                fig = plot_bone_lines(fingers_bone_lines, handroot=joints_Theta[-3:], fig=fig, show=False)
+                plt.pause(pausing)
+                plt.clf()
     plt.show()
 
 def E_pos3D(joints_Theta, joints_pred):
@@ -346,10 +451,20 @@ def bone_lengths_from_hand_matrix(hand_matrix):
             bone_ix += 1
     return bone_lengths
 
-
-#animate_skeleton()
-
 joint_pred = get_example_target_joints()
+
+joints_Theta = [0.] * 26
+for i in range(26):
+    if i < 3:
+        continue
+    if i % 4 == 0:
+        continue
+    joints_Theta[i] = 1.
+fingers_bone_lines = skeleton_bone_lines(joints_Theta)
+#plot_hand_matrix(joint_pred)
+print(joints_Theta)
+plot_bone_lines(fingers_bone_lines, handroot=joints_Theta[-3:])
+#animate_skeleton()
 
 bone_lengths = bone_lengths_from_hand_matrix(joint_pred)
 
@@ -358,7 +473,7 @@ lr = 0.01
 i = 0
 loss = 0.
 prev_loss = 0.
-theta = np.array([0.] * 26)
+theta = np.array([1.] * 26)
 num_iter = 10000
 for i in range(num_iter):
     grad_calc = grad_E_pos3D(theta, joint_pred)
