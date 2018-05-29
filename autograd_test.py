@@ -130,7 +130,7 @@ def skeleton_bone_lengths():
     :return skeleton model fixed bone lengths in mm
     '''
     bone_lengths = np.zeros((20, 1))
-    # thumb
+    # finger
     bone_lengths[0] = 40
     bone_lengths[1] = 50
     bone_lengths[2] = 40
@@ -163,7 +163,7 @@ def skeleton_bone_angles():
     :return: canonical global angles of resting skeleton
     '''
     bone_angles = [0] * 20
-    # thumb
+    # finger
     bone_angles[0] = 5.495
     # index\
     bone_angles[4] = 5.8875
@@ -175,24 +175,26 @@ def skeleton_bone_angles():
     bone_angles[16] = 0.785
     return bone_angles
 
-def thumb(theta):
+def finger_boneline(finger_ix, theta, eps=1e-6):
     bone_lengths = skeleton_bone_lengths()
     bone_angles = skeleton_bone_angles()
-    bone_ixs, axes_thetas = get_bone_line_args(0)
+    bone_ixs, axes_thetas = get_bone_line_args(finger_ix)
     bones = []
     for bone_ix in range(len(axes_thetas)):
-        bone_vec = [bone_lengths[bone_ix][0], 0., 0.]
+        bone_vec = [bone_lengths[3-bone_ix][0], 0., 0.]
         for ax_ix in range(3):
             if axes_thetas[bone_ix][ax_ix] is None:
                 continue
             angle_rot = theta[axes_thetas[bone_ix][ax_ix]]
-            bone_vec = rotate_diff_axis(ax_ix, bone_vec, 0, angle_rot)
+            if abs(angle_rot) > eps:
+                bone_vec = rotate_diff_axis(ax_ix, bone_vec, 0, angle_rot)
         bone_vec = rotate_diff_axis(1, bone_vec, 0, bone_angles[bone_ix])
+
         bones = [bone_vec] + bones
     return bones
 
 def loss_finger(theta, finger_pred):
-    finger = thumb(theta)
+    finger = finger_boneline(theta)
     dist = 0.
     for i in range(len(finger)):
         dist = dist + np.abs((finger[i] - finger_pred)).sum()
@@ -201,7 +203,7 @@ def loss_finger(theta, finger_pred):
 theta = np.array([0.] * 26)
 print('Theta pred:\n{}'.format(theta))
 
-finger_pred = thumb(theta)
+finger_pred = finger_boneline(0, theta)
 print('Finger pred:\n{}'.format(finger_pred))
 plot_bone_lines([finger_pred])
 
@@ -213,7 +215,7 @@ lr = 0.001
 for i in range(200):
     grad_calc = grad_loss(theta, finger_pred)
     theta -= lr * grad_calc
-    loss = loss_finger(theta, finger_pred)
+    loss = loss_finger_boneline(theta, finger_pred)
     diff_loss = np.abs((loss - prev_loss))
     if i > 0 and i % 10 == 0:
         print('Iter {} : Loss {} : Loss Diff {}'.format(i, loss, diff_loss))
@@ -225,9 +227,9 @@ for i in range(200):
 print('Num iter: {}'.format(i))
 print('Final loss: {}'.format(loss))
 print('Theta:\n{}'.format(theta))
-final_thumb = thumb(theta)
-print('Finger:\n{}'.format(final_thumb))
+final_finger = finger_boneline(theta)
+print('Finger:\n{}'.format(final_finger))
 
-plot_bone_lines([final_thumb])
+plot_bone_lines([final_finger])
 
 a = 0

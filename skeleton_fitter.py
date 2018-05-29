@@ -74,30 +74,30 @@ def skeleton_bone_lengths():
     '''
     bone_lengths = np.zeros((20, 1))
     # thumb
-    bone_lengths[0] = 40
-    bone_lengths[1] = 50
-    bone_lengths[2] = 40
-    bone_lengths[3] = 30
+    bone_lengths[0] = 52
+    bone_lengths[1] = 43
+    bone_lengths[2] = 35
+    bone_lengths[3] = 32
     # index
-    bone_lengths[4] = 110
-    bone_lengths[5] = 40
-    bone_lengths[6] = 20
-    bone_lengths[7] = 20
+    bone_lengths[4] = 86
+    bone_lengths[5] = 42
+    bone_lengths[6] = 34
+    bone_lengths[7] = 29
     # middle
-    bone_lengths[8] = 110
-    bone_lengths[9] = 40
-    bone_lengths[10] = 20
-    bone_lengths[11] = 20
+    bone_lengths[8] = 78
+    bone_lengths[9] = 48
+    bone_lengths[10] = 34
+    bone_lengths[11] = 28
     # ring
-    bone_lengths[12] = 100
-    bone_lengths[13] = 40
-    bone_lengths[14] = 20
-    bone_lengths[15] = 20
+    bone_lengths[12] = 77
+    bone_lengths[13] = 50
+    bone_lengths[14] = 32
+    bone_lengths[15] = 29
     # little
-    bone_lengths[16] = 90
-    bone_lengths[17] = 30
-    bone_lengths[18] = 20
-    bone_lengths[19] = 20
+    bone_lengths[16] = 77
+    bone_lengths[17] = 29
+    bone_lengths[18] = 21
+    bone_lengths[19] = 23
     return bone_lengths
 
 def skeleton_bone_angles():
@@ -166,6 +166,33 @@ def plot_bone_lines(bone_lines, handroot=None, fig=None, show=True, lim=200):
         plt.show()
     return fig
 
+def plot_hand_matrix(hand_matrix, fig=None, show=True, lim=200):
+    if fig is None:
+        fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.set_color_cycle('rgby')
+    handroot = np.zeros((1, 3))
+    for i in range(5):
+        mcp_ix = (i*4)
+        ax.plot([handroot[0, 0], hand_matrix[mcp_ix, 0]],
+                [handroot[0, 1], hand_matrix[mcp_ix, 1]],
+                [handroot[0, 2], hand_matrix[mcp_ix, 2]])
+        for j in range(3):
+            ax.plot([hand_matrix[mcp_ix+j, 0], hand_matrix[mcp_ix+j+1, 0]],
+                    [hand_matrix[mcp_ix+j, 1], hand_matrix[mcp_ix+j+1, 1]],
+                    [hand_matrix[mcp_ix+j, 2], hand_matrix[mcp_ix+j+1, 2]])
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim3d([-lim, lim])
+    ax.set_ylim3d([-lim, lim])
+    ax.set_zlim3d([-lim, lim])
+    if show:
+        plt.show()
+    return fig
+
+
+
 def update_point_and_children(joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta_ix, children_points, eps=1e-6):
     main_point = [bone_lengths[bone_ix][0], 0, 0]
     for i in range(len(children_points)):
@@ -230,7 +257,7 @@ def skeleton_bone_lines(joints_Theta, eps=1e-6):
                 joints_Theta, bone_lengths, bone_angles, bone_ix, axes_theta, finger_points)
             finger_points = [finger_main_pt] + finger_points
         finger_points = np.array(finger_points)
-        finger_points = finger_points + joints_Theta[-3:]
+        #finger_points = finger_points + joints_Theta[-3:] # do not consider global position
         bone_lines.append(finger_points)
     return bone_lines
 
@@ -306,6 +333,51 @@ def get_example_target_joints():
                  [ 8.01767883e+01,  1.06043503e+02, -4.03247738e+00]])
     return joints_vec
 
+def bone_lengths_from_hand_matrix(hand_matrix):
+    handroot = np.zeros((1, 3))
+    bone_ix = 0
+    bone_lengths = [0.] * 20
+    for i in range(5):
+        mcp_ix = (i*4)
+        bone_lengths[bone_ix] = np.linalg.norm(handroot[0, :] - hand_matrix[mcp_ix, :])
+        bone_ix += 1
+        for j in range(3):
+            bone_lengths[bone_ix] = np.linalg.norm(hand_matrix[mcp_ix+j, :] - hand_matrix[mcp_ix+j+1, :])
+            bone_ix += 1
+    return bone_lengths
 
-animate_skeleton()
+
+#animate_skeleton()
+
+joint_pred = get_example_target_joints()
+
+bone_lengths = bone_lengths_from_hand_matrix(joint_pred)
+
+grad_E_pos3D = grad(E_pos3D, 0)
+lr = 0.01
+i = 0
+loss = 0.
+prev_loss = 0.
+theta = np.array([0.] * 26)
+num_iter = 10000
+for i in range(num_iter):
+    grad_calc = grad_E_pos3D(theta, joint_pred)
+    theta -= lr * grad_calc
+    loss = E_pos3D(theta, joint_pred)
+    diff_loss = np.abs((loss - prev_loss))
+    if i > 0 and i % 10 == 0:
+        print('Iter {} : Loss {} : Loss Diff {}'.format(i, loss, diff_loss))
+    if diff_loss < 1e-4:
+        print('Found very small loss diff: {}'.format(diff_loss))
+        break
+    prev_loss = loss
+
+print('Num iter: {}'.format(i))
+print('Final loss: {}'.format(loss))
+print('Theta:\n{}'.format(theta))
+fingers_bone_lines = skeleton_bone_lines(theta)
+
+plot_hand_matrix(joint_pred)
+plot_bone_lines(fingers_bone_lines, handroot=theta[-3:])
+
 
