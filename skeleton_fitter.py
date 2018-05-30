@@ -78,22 +78,23 @@ def get_bones_lengths():
     bone_lengths[4] = [77., 29., 21., 23.]
     return bone_lengths
 
-def get_fingers_angles_canonical():
+def get_fingers_angles_canonical(right_hand=True):
     '''
 
     :return: bone angles of hand canonical pose
     '''
     finger_angles = list([[0., 0., 0.]] * 5)
-    # finger
-    finger_angles[0] = [5.8875, 5.495, 0.75]
-    # index
-    finger_angles[1] = [1.57, 5.8875, 0.]
-    # middle
-    finger_angles[2] = [1.57, 0., 0.]
-    # ring
-    finger_angles[3] = [1.57, 0.3925, 0.]
-    # little
-    finger_angles[4] = [1.57, 0.785, 0.]
+    if right_hand:
+        # finger
+        finger_angles[0] = [0., 0.2, 0.785]
+        # index
+        finger_angles[1] = [0., 0., 0.3925]
+        # middle
+        finger_angles[2] = [0., 0., 0.]
+        # ring
+        finger_angles[3] = [0., 0., 5.8875]
+        # little
+        finger_angles[4] = [0., 0., 5.495]
     return finger_angles
 
 def rotate_diff_x(vec, ix_start, theta):
@@ -217,11 +218,15 @@ def Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles):
     return hand_matrix
 
 def animate_skeleton(pausing=0.001):
+    bones_lengths = get_bones_lengths()
+    fingers_angles = get_fingers_angles_canonical()
     fig = None
     Theta = [0.] * 23
     for i in range(len(Theta)):
-        for j in range(10):
-            Theta[i] = 0.05 * j
+        if i < 3:
+            continue
+        for j in range(5):
+            Theta[i] = 0.1 * j
             hand_seq = get_hand_seq(Theta, bones_lengths, fingers_angles)
             fig = plot_bone_lines(hand_seq, fig=fig, show=False)
             plt.pause(pausing)
@@ -254,26 +259,26 @@ def get_example_target_matrix():
 
 def get_example_target_matrix2():
     target_matrix = np.array([
-                [5.04926300e+01, 4.86349411e+01, 3.22667580e+01],
-                [6.29547806e+01, 7.22900848e+01, 1.90970001e+01],
-                [7.12234039e+01, 8.81342850e+01, 7.43657589e+00],
-                [8.01767883e+01, 1.06043503e+02, -4.03247738e+00],
-                [6.31909981e+01, 3.92918282e+01, 2.07988148e+01],
-                [9.71118088e+01, 7.10300827e+01, 1.67733021e-02],
-                [1.13407402e+02, 9.21796188e+01, -1.90750809e+01],
-                [1.07807945e+02, 1.04189819e+02, -4.57797546e+01],
-                [7.25996475e+01, 2.82628822e+01, 5.69833565e+00],
-                [1.12488670e+02, 5.47043686e+01, -1.17148340e+00],
-                [1.34326385e+02, 7.71675949e+01, -1.57214651e+01],
-                [1.37153976e+02, 9.35943451e+01, -3.92123222e+01],
-                [8.31332245e+01, 1.65777664e+01, -1.59413128e+01],
-                [1.18601105e+02, 3.94201927e+01, -2.28066750e+01],
-                [1.35169754e+02, 6.50885391e+01, -3.82870293e+01],
-                [1.42985275e+02, 8.90216675e+01, -5.33211937e+01],
-                [3.81632347e+01, 1.14704266e+01, -3.37704353e+01],
-                [6.10587921e+01, 2.33903408e+01, -6.82850800e+01],
-                [8.05751648e+01, 4.75567703e+01, -8.45160522e+01],
-                [9.82698898e+01, 7.10361176e+01, -9.79136353e+01]
+        [28.34034538269043, -20.943307876586914, 3.6773264408111572],
+        [56.796321868896484, -33.193267822265625, 3.1326169967651367],
+        [77.83787536621094, -49.648651123046875, 8.064435005187988],
+        [92.7770767211914, -69.77127075195312, 12.059499740600586],
+        [35.77924346923828, -65.538330078125, -19.885385513305664],
+        [44.29819107055664, -93.25546264648438, -23.226430892944336],
+        [46.753971099853516, -114.85948181152344, -17.873868942260742],
+        [52.39909744262695, -130.5230712890625, -8.741547584533691],
+        [16.363204956054688, -69.00721740722656, -12.813824653625488],
+        [22.628355026245117, -110.04674530029297, -22.0496826171875],
+        [32.091888427734375, -133.3424072265625, -19.088516235351562],
+        [39.751853942871094, -147.41351318359375, -7.428798198699951],
+        [3.7158586978912354, -72.5374526977539, -7.045773506164551],
+        [10.957385063171387, -110.35797882080078, -6.14526891708374],
+        [14.709113121032715, -133.33056640625, -0.15571321547031403],
+        [25.421911239624023, -137.51380920410156, 12.537755966186523],
+        [-9.418401718139648, -71.76628112792969, 2.5787229537963867],
+        [-6.334733009338379, -94.2793197631836, 17.664888381958008],
+        [-4.511924743652344, -107.78968048095703, 30.895553588867188],
+        [1.16363525390625, -124.62622833251953, 39.50660705566406],
                  ])
     return target_matrix
 
@@ -299,6 +304,7 @@ def Epsilon_Loss(Theta, target_matrix, bones_lengths, fingers_angles):
     return loss_eps
 
 def fit_skeleton(loss_func, target_matrix, bones_lengths, fingers_angles, initial_theta=None, num_iter=1000, log_interval=10, lr=0.01):
+    losses = []
     grad_fun = grad(loss_func, 0)
     i = 0
     loss = 0.
@@ -311,25 +317,21 @@ def fit_skeleton(loss_func, target_matrix, bones_lengths, fingers_angles, initia
         theta -= lr * grad_calc
         if i % log_interval == 0:
             loss = loss_func(theta, target_matrix, bones_lengths, fingers_angles)
+            losses.append(losses)
             print('Iter {} : Loss {}'.format(i, loss))
-        if i % (10 * log_interval) == 0:
-            print('Theta:\t{}'.format(theta))
+        #if i % (10 * log_interval) == 0:
+        #    print('Theta:\t{}'.format(theta))
     print('Num iter: {}'.format(i))
     print('Final loss: {}'.format(loss))
     print('Theta:\n{}'.format(theta))
-    return theta
+    return theta, losses
+
+#animate_skeleton()
 
 bones_lengths = get_bones_lengths()
 fingers_angles = get_fingers_angles_canonical()
-hand_seq = get_hand_seq_canonical(bones_lengths, fingers_angles)
 
-Theta = np.array([1.] * 23)
-Theta[0] = 5.57
-# thumb dip and tip
-for i in range(len(Theta)):
-    ix = i - 1
-    if ix > 0 and ix % 4 == 0:
-        Theta[i] = np.pi / 4
+Theta = np.array([0.001] * 23)
 print(Theta)
 hand_seq = get_hand_seq(Theta, bones_lengths, fingers_angles)
 #plot_bone_lines(hand_seq)
@@ -337,15 +339,15 @@ hand_seq = get_hand_seq(Theta, bones_lengths, fingers_angles)
 hand_matrix = Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles)
 print(hand_matrix)
 
-target_matrix = get_example_target_matrix()
+target_matrix = get_example_target_matrix2()
 print(target_matrix)
 #plot_hand_matrix(target_matrix)
 
 loss = E_pos3D(Theta, target_matrix, bones_lengths, fingers_angles)
 print(loss)
 
-Theta_fit = fit_skeleton(E_pos3D, target_matrix, bones_lengths, fingers_angles,
-                         initial_theta=Theta, num_iter=200, log_interval=10, lr=3e-5)
+Theta_fit, losses = fit_skeleton(E_pos3D, target_matrix, bones_lengths, fingers_angles,
+                         initial_theta=Theta, num_iter=10000, log_interval=10, lr=1e-5)
 hand_seq_fit = get_hand_seq(Theta_fit, bones_lengths, fingers_angles)
 
 hand_matrix = Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles)

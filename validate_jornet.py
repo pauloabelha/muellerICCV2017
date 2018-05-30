@@ -74,7 +74,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
 
             output_batch_numpy = output[7][i].data.cpu().numpy()
             print('\n-------------------------------')
-            print(output_batch_numpy.reshape((20, 3)))
+            reshaped_out = output_batch_numpy.reshape((20, 3))
+            for j in range(20):
+                print('[{}, {}, {}],'.format(reshaped_out[j, 0], reshaped_out[j, 1], reshaped_out[j, 2]))
             print('-------------------------------')
             fig, ax = visualize.plot_3D_joints(target_joints[i])
             visualize.plot_3D_joints(output_batch_numpy, fig=fig, ax=ax, color='C6')
