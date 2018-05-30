@@ -210,6 +210,8 @@ def hand_seq_to_matrix(hand_seq):
     return hand_matrix
 
 def Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles):
+    Theta = np.minimum(Theta, 6.28)
+    Theta = np.maximum(Theta, 0.)
     hand_seq = get_hand_seq(Theta, bones_lengths, fingers_angles)
     hand_matrix = hand_seq_to_matrix(hand_seq)
     return hand_matrix
@@ -226,7 +228,7 @@ def animate_skeleton(pausing=0.001):
             plt.clf()
     plt.show()
 
-def get_example_target_matrix():
+def get_example_target_matrix_old():
     target_matrix = np.array([
                  [ 3.81632347e+01,  1.14704266e+01, -3.37704353e+01],
                  [ 6.10587921e+01,  2.33903408e+01, -6.82850800e+01],
@@ -250,13 +252,54 @@ def get_example_target_matrix():
                  [ 8.01767883e+01,  1.06043503e+02, -4.03247738e+00]])
     return target_matrix
 
+def get_example_target_matrix():
+    target_matrix = np.array([
+                [5.04926300e+01, 4.86349411e+01, 3.22667580e+01],
+                [6.29547806e+01, 7.22900848e+01, 1.90970001e+01],
+                [7.12234039e+01, 8.81342850e+01, 7.43657589e+00],
+                [8.01767883e+01, 1.06043503e+02, -4.03247738e+00],
+                [6.31909981e+01, 3.92918282e+01, 2.07988148e+01],
+                [9.71118088e+01, 7.10300827e+01, 1.67733021e-02],
+                [1.13407402e+02, 9.21796188e+01, -1.90750809e+01],
+                [1.07807945e+02, 1.04189819e+02, -4.57797546e+01],
+                [7.25996475e+01, 2.82628822e+01, 5.69833565e+00],
+                [1.12488670e+02, 5.47043686e+01, -1.17148340e+00],
+                [1.34326385e+02, 7.71675949e+01, -1.57214651e+01],
+                [1.37153976e+02, 9.35943451e+01, -3.92123222e+01],
+                [8.31332245e+01, 1.65777664e+01, -1.59413128e+01],
+                [1.18601105e+02, 3.94201927e+01, -2.28066750e+01],
+                [1.35169754e+02, 6.50885391e+01, -3.82870293e+01],
+                [1.42985275e+02, 8.90216675e+01, -5.33211937e+01],
+                [3.81632347e+01, 1.14704266e+01, -3.37704353e+01],
+                [6.10587921e+01, 2.33903408e+01, -6.82850800e+01],
+                [8.05751648e+01, 4.75567703e+01, -8.45160522e+01],
+                [9.82698898e+01, 7.10361176e+01, -9.79136353e+01]
+                 ])
+    return target_matrix
+
+def E_lim(Theta):
+    loss_lim = 0.
+    for i in range(23):
+        if 0 <= Theta[i] and Theta[i] <= 6.28:
+            loss_angle = 0.
+        else:
+            loss_angle = np.abs(np.abs(Theta[i] - 6.28))
+        loss_lim += loss_angle
+    return loss_lim
+
 def E_pos3D(Theta, target_matrix, bones_lengths, fingers_angles):
     hand_matrix = Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles)
     dist = np.abs((hand_matrix - target_matrix)).sum()
     return dist
 
+def Epsilon_Loss(Theta, target_matrix, bones_lengths, fingers_angles):
+    loss_pos = E_pos3D(Theta, target_matrix, bones_lengths, fingers_angles)
+    loss_lim = E_lim(Theta)
+    loss_eps = loss_pos + loss_lim
+    return loss_eps
+
 def fit_skeleton(target_matrix, bones_lengths, fingers_angles, initial_theta=None, num_iter=1000, log_interval=10, lr=0.01):
-    grad_E_pos3D = grad(E_pos3D, 0)
+    grad_fun = grad(Epsilon_Loss, 0)
     i = 0
     loss = 0.
     if initial_theta is None:
@@ -264,10 +307,10 @@ def fit_skeleton(target_matrix, bones_lengths, fingers_angles, initial_theta=Non
     else:
         theta = np.array(initial_theta)
     for i in range(num_iter):
-        grad_calc = grad_E_pos3D(theta, target_matrix, bones_lengths, fingers_angles)
+        grad_calc = grad_fun(theta, target_matrix, bones_lengths, fingers_angles)
         theta -= lr * grad_calc
         if i % log_interval == 0:
-            loss = E_pos3D(theta, target_matrix, bones_lengths, fingers_angles)
+            loss = Epsilon_Loss(theta, target_matrix, bones_lengths, fingers_angles)
             print('Iter {} : Loss {}'.format(i, loss))
     print('Num iter: {}'.format(i))
     print('Final loss: {}'.format(loss))
@@ -278,7 +321,7 @@ bones_lengths = get_bones_lengths()
 fingers_angles = get_fingers_angles_canonical()
 hand_seq = get_hand_seq_canonical(bones_lengths, fingers_angles)
 
-Theta = np.array([0.] * 23)
+Theta = np.array([1.] * 23)
 Theta[0] = 5.57
 # thumb dip and tip
 for i in range(len(Theta)):
@@ -300,7 +343,7 @@ loss = E_pos3D(Theta, target_matrix, bones_lengths, fingers_angles)
 print(loss)
 
 Theta_fit = fit_skeleton(target_matrix, bones_lengths, fingers_angles,
-                         initial_theta=Theta, num_iter=10000, log_interval=100, lr=1e-1)
+                         initial_theta=Theta, num_iter=1000, log_interval=10, lr=2e-5)
 hand_seq_fit = get_hand_seq(Theta_fit, bones_lengths, fingers_angles)
 plot_hand_matrix(target_matrix)
 plot_bone_lines(hand_seq_fit)
