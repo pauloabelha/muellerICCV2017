@@ -10,7 +10,7 @@ import synthhands_handler
 from random import randint
 import datetime
 
-def load_checkpoint(filename, model_class, use_cuda=True):
+def load_checkpoint(filename, model_class, use_cuda=False):
     torch_file = torch.load(filename, map_location=lambda storage, loc: storage)
     '''
     if use_cuda:
@@ -135,7 +135,6 @@ def parse_args(model_class, random_id=-1):
     args.joint_ixs = list(map(int, args.joint_ixs))
 
     train_vars = initialize_train_vars(args)
-    train_vars['root_folder'] = args.root_folder
 
     train_vars['checkpoint_filenamebase'] = 'trained_' + str(model_class.__name__) + '_'
     if random_id >= 0:

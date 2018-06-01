@@ -11,7 +11,7 @@ from HALNet import HALNet
 import visualize
 import converter as conv
 
-DEBUG_VISUALLY = True
+DEBUG_VISUALLY = False
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1

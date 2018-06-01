@@ -1,6 +1,7 @@
 # exampel calls
 # -i female_object/seq01/cam01/01/00000000 -r /home/paulo/SynthHands_Release/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_30000.pth.tar
 # -i Fruits/color_on_depth/image_00000 -r /home/paulo/EgoDexter/data/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_30000.pth.tar
+# -i data/Desk/color_on_depth/image_00000 -r /home/paulo/EgoDexter/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_70000.pth.tar
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -22,8 +23,6 @@ parser.add_argument('-r', dest='dataset_folder', default='', type=str, required=
                     help='Dataset folder')
 parser.add_argument('--halnet', dest='halnet_filepath', type=str, required=True,
                     help='Filepath to trained HALNet checkpoint')
-parser.add_argument('--jornet', dest='jornet_filepath', type=str, required=True,
-                    help='Filepath to trained HALNet checkpoint')
 parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
                     help='Whether to use cuda for training')
 parser.add_argument('-o', dest='output_filepath', default='',
@@ -41,12 +40,6 @@ halnet, _, _, _ = trainer.load_checkpoint(filename=args.halnet_filepath,
                                           model_class=HALNet.HALNet,
                                           use_cuda=args.use_cuda)
 print_time('HALNet loading: ', time.time() - start)
-
-start = time.time()
-jornet, _, _, _ = trainer.load_checkpoint(filename=args.jornet_filepath,
-                                          model_class=JORNet.JORNet,
-                                          use_cuda=args.use_cuda)
-print_time('JORNet loading: ', time.time() - start)
 
 def plot_joints(joints_colorspace, show_legend=True, linewidth=4):
     num_joints = joints_colorspace.shape[0]
@@ -89,7 +82,7 @@ def get_image_as_data(dataset_folder, input_img_namebase, dataset_name, img_res)
         data = egodexter_handler.get_data(dataset_folder, input_img_namebase, img_res=img_res)
     return data
 
-joints_colorspace = np.zeros((21, 2))
+joint_ix = 0
 for i in range(100):
     print('--------------------------------------------------------------------------')
     print(args.input_img_namebase)
@@ -101,7 +94,6 @@ for i in range(100):
     start = time.time()
     data = get_image_as_data(args.dataset_folder, input_img_namebase, dataset_name, (320, 240))
     img_numpy = data.data.numpy()
-
     print_time('HALNet image conversion: ', time.time() - start)
 
     start = time.time()
@@ -110,40 +102,18 @@ for i in range(100):
 
     start = time.time()
     halnet_main_out = output_halnet[3][0].data.numpy()
-    handroot_colorspace = np.unravel_index(np.argmax(halnet_main_out[0]), halnet_main_out[0].shape)
-    handroot = camera.joint_color2depth(handroot_colorspace[0], handroot_colorspace[1],
-                                        img_numpy[3, handroot_colorspace[0], handroot_colorspace[1]],
-                                        egodexter_handler.DEPTH_INTR_MTX_INV)
+    handroot_colorspace = np.unravel_index(np.argmax(halnet_main_out[joint_ix]), halnet_main_out[joint_ix].shape)
     print('Handroot (colorspace):\t{}'.format(handroot_colorspace))
-    print('Handroot (depthspace):\t{}'.format(handroot))
-    visualize.plot_image(img_numpy)
-    visualize.show()
     labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
-
-    data_crop, _, _, _ = synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
-    batch_jornet = conv.data_to_batch(data_crop)
-    print_time('JORNet image conversion: ', time.time() - start)
-
-    start = time.time()
-    output_jornet = jornet(batch_jornet)
-    print_time('JORNet pass: ', time.time() - start)
-
-    start = time.time()
-    jornet_joints_mainout = output_jornet[7][0].data.cpu().numpy()
-    # plot depth
-    jornet_joints_mainout *= 1.1
-    #labels_jointspace, _, _ = synthhands_handler. \
-    #    get_labels_depth_and_color(args.dataset_folder, input_img_namebase)
-    #handroot2 = labels_jointspace[0, 0:3]
-
-    jornet_joints_global = conv.jornet_local_to_global_joints(jornet_joints_mainout, handroot)
-    joints_colorspace = conv.joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(320, 240))
-    print_time('Plot image preparation: ', time.time() - start)
+    print_time('HALNet hand root localisation: ', time.time() - start)
 
     plt.imshow(conv.numpy_to_plottable_rgb(img_numpy))
-    plot_joints(joints_colorspace, show_legend=False)
+    #plot_joints(labels_colorspace, show_legend=False)
+    heatmap = np.exp(halnet_main_out[joint_ix])
+    heatmap = heatmap.swapaxes(0, 1)
+    plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
     plt.title(input_img_namebase)
-    plt.pause(0.2)
+    plt.pause(0.01)
     plt.clf()
     print('--------------------------------------------------------------------------')
 

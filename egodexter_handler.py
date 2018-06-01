@@ -3,7 +3,7 @@ from torch.utils.data.dataset import Dataset
 from dataset_handler import load_dataset_split
 import camera
 import torch
-from converter import convert_color_space_label_to_heatmap, convert_labels_2D_new_res
+from converter import convert_labels_2D_new_res, color_space_label_to_heatmap
 from io_image import read_RGB_image
 
 DEPTH_INTR_MTX =     np.array([[475.62,         0.0,            311.125],
@@ -28,6 +28,25 @@ PROJECT_MTX =       np.array([[1.0,         0.0,            0.0,        0.0],
 
 DATASET_SPLIT_FILENAME = 'dataset_split_egodexter.p'
 
+
+def get_data(root_folder, filenamebase, color_on_depth_suffix='_color_on_depth.png', depth_suffix='_depth.png', img_res=(320, 240), as_torch=True):
+    # load color
+    color_on_depth_image_filepath = root_folder + filenamebase + color_on_depth_suffix
+    color_on_depth_image = read_RGB_image(color_on_depth_image_filepath, new_res=img_res)
+    # load depth
+    filenamebase_split = filenamebase.split('/')
+    depth_filenamebase = '/'.join(filenamebase_split[0:2]) + '/depth/' + filenamebase_split[-1]
+    depth_image_filepath = root_folder + depth_filenamebase + depth_suffix
+    depth_image = read_RGB_image(depth_image_filepath, new_res=img_res)
+    depth_image = np.array(depth_image)
+    depth_image = np.reshape(depth_image, (depth_image.shape[0], depth_image.shape[1], 1))
+    # get data
+    RGBD_image = np.concatenate((color_on_depth_image, depth_image), axis=-1)
+    RGBD_image = RGBD_image.swapaxes(1, 2).swapaxes(0, 1)
+    img_data = RGBD_image
+    if as_torch:
+        img_data = torch.from_numpy(RGBD_image).float()
+    return img_data
 
 
 class EgoDexterDataset(Dataset):
@@ -117,7 +136,7 @@ class EgoDexterDataset(Dataset):
         labels_heatmaps = np.zeros((len(self.joint_ixs), self.img_res[0], self.img_res[1]))
         for label_ix in range(img_labels_2D.shape[0]):
             label_heatmap =\
-                convert_color_space_label_to_heatmap(img_labels_2D[label_ix, :], self.img_res)
+                color_space_label_to_heatmap(img_labels_2D[label_ix, :], self.img_res)
             label_heatmap = label_heatmap.astype(float)
             labels_heatmaps[label_ix, :, :] = label_heatmap
         return labels_heatmaps
