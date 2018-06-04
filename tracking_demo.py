@@ -1,5 +1,5 @@
 # exampel calls
-# -i female_object/seq01/cam01/01/00000000 -r /home/paulo/SynthHands_Release/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_30000.pth.tar
+# -i female_object/seq01/cam01/01/00000000 -r /home/paulo/SynthHands_Release/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_for_valid_38000.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_70000.pth.tar
 # -i Fruits/color_on_depth/image_00000 -r /home/paulo/EgoDexter/data/ --halnet /home/paulo/muellericcv2017/trainednets/trained_HALNet_1493752625_.pth.tar --jornet /home/paulo/muellericcv2017/trainednets/trained_JORNet_1662451312_for_valid_30000.pth.tar
 
 import matplotlib.pyplot as plt
@@ -89,8 +89,22 @@ def get_image_as_data(dataset_folder, input_img_namebase, dataset_name, img_res)
         data = egodexter_handler.get_data(dataset_folder, input_img_namebase, img_res=img_res)
     return data
 
+def load_images_to_memory(num_images, dataset_folder, dataset_name, img_res):
+    images = []
+    for i in range(num_images):
+        input_img_namebase = get_image_name(args.input_img_namebase, i, dataset_name)
+        data = get_image_as_data(dataset_folder, input_img_namebase, dataset_name, img_res)
+        images.append(data)
+    return images
+
+start = time.time()
+images = load_images_to_memory(100, args.dataset_folder, dataset_name, (320, 240))
+print_time('Loading images to memory: ', time.time() - start)
+
 joints_colorspace = np.zeros((21, 2))
+
 for i in range(100):
+    start_beg = time.time()
     print('--------------------------------------------------------------------------')
     print(args.input_img_namebase)
 
@@ -98,11 +112,8 @@ for i in range(100):
     input_img_namebase = get_image_name(args.input_img_namebase, i, dataset_name)
     print_time('Image reading: ', time.time() - start)
 
-    start = time.time()
-    data = get_image_as_data(args.dataset_folder, input_img_namebase, dataset_name, (320, 240))
+    data = images[i]
     img_numpy = data.data.numpy()
-
-    print_time('HALNet image conversion: ', time.time() - start)
 
     start = time.time()
     output_halnet = halnet(conv.data_to_batch(data))
@@ -112,12 +123,11 @@ for i in range(100):
     halnet_main_out = output_halnet[3][0].data.numpy()
     handroot_colorspace = np.unravel_index(np.argmax(halnet_main_out[0]), halnet_main_out[0].shape)
     handroot = camera.joint_color2depth(handroot_colorspace[0], handroot_colorspace[1],
-                                        img_numpy[3, handroot_colorspace[0], handroot_colorspace[1]],
+                                        300,
                                         egodexter_handler.DEPTH_INTR_MTX_INV)
     print('Handroot (colorspace):\t{}'.format(handroot_colorspace))
+    print('Handroot (colorspace), z:\t{}'.format(img_numpy[3, handroot_colorspace[0], handroot_colorspace[1]]))
     print('Handroot (depthspace):\t{}'.format(handroot))
-    visualize.plot_image(img_numpy)
-    visualize.show()
     labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
 
     data_crop, _, _, _ = synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
@@ -130,20 +140,21 @@ for i in range(100):
 
     start = time.time()
     jornet_joints_mainout = output_jornet[7][0].data.cpu().numpy()
-    # plot depth
-    jornet_joints_mainout *= 1.1
-    #labels_jointspace, _, _ = synthhands_handler. \
-    #    get_labels_depth_and_color(args.dataset_folder, input_img_namebase)
-    #handroot2 = labels_jointspace[0, 0:3]
 
     jornet_joints_global = conv.jornet_local_to_global_joints(jornet_joints_mainout, handroot)
     joints_colorspace = conv.joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(320, 240))
+    mov_0 = labels_colorspace[0, 0] - joints_colorspace[0, 0]
+    mov_1 = labels_colorspace[0, 1] - joints_colorspace[0, 1]
+    for i in range(joints_colorspace.shape[0] ):
+        joints_colorspace[i, 0] += mov_0
+        joints_colorspace[i, 1] += mov_1
     print_time('Plot image preparation: ', time.time() - start)
 
     plt.imshow(conv.numpy_to_plottable_rgb(img_numpy))
-    plot_joints(joints_colorspace, show_legend=False)
-    plt.title(input_img_namebase)
-    plt.pause(0.2)
+    plot_joints(labels_colorspace, show_legend=False)
+    total_elapsed_time = round(time.time() - start_beg, 2)
+    plt.title(input_img_namebase + ' : ' + str(total_elapsed_time) + ' ms')
+    plt.pause(0.001)
     plt.clf()
     print('--------------------------------------------------------------------------')
 
