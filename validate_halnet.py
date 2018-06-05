@@ -11,7 +11,7 @@ from HALNet import HALNet
 import visualize
 import converter as conv
 
-DEBUG_VISUALLY = True
+DEBUG_VISUALLY = False
 
 def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=True):
     curr_epoch_iter = 1
@@ -75,9 +75,9 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
         minibatch_completed = (batch_idx+1) % control_vars['iter_size'] == 0
         if minibatch_completed:
             # append total loss
-            valid_vars['losses'].append(valid_vars['total_loss'].data[0])
+            valid_vars['losses'].append(valid_vars['total_loss'].item())
             # erase total loss
-            total_loss = valid_vars['total_loss'].data[0]
+            total_loss = valid_vars['total_loss'].item()
             valid_vars['total_loss'] = 0
             # append dist loss
             valid_vars['pixel_losses'].append(valid_vars['total_pixel_loss'])
@@ -90,7 +90,7 @@ def validate(valid_loader, model, optimizer, valid_vars, control_vars, verbose=T
             # check if loss is better
             if valid_vars['losses'][-1] < valid_vars['best_loss']:
                 valid_vars['best_loss'] = valid_vars['losses'][-1]
-                print_verbose("  This is a best loss found so far: " + str(valid_vars['losses'][-1]), verbose)
+                #print_verbose("  This is a best loss found so far: " + str(valid_vars['losses'][-1]), verbose)
             # log checkpoint
             if control_vars['curr_iter'] % control_vars['log_interval'] == 0:
                 trainer.print_log_info(model, optimizer, 1, total_loss, valid_vars, control_vars)
@@ -125,7 +125,7 @@ model, optimizer, control_vars, valid_vars, train_control_vars = validator.parse
 if valid_vars['use_cuda']:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-valid_loader = synthhands_handler.get_SynthHands_validloader(root_folder=valid_vars['root_folder'],
+valid_loader = synthhands_handler.get_SynthHands_testloader(root_folder=valid_vars['root_folder'],
                                                              joint_ixs=model.joint_ixs,
                                                              heatmap_res=(320, 240),
                                                              batch_size=control_vars['max_mem_batch'],

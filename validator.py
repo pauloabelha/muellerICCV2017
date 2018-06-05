@@ -70,6 +70,8 @@ def parse_args(model_class):
                         help='Whether to visually inspect results')
     parser.add_argument('--cuda', dest='use_cuda', action='store_true', default=False,
                         help='Whether to use cuda for training')
+    parser.add_argument('--split_filename', default='', required=False,
+                        help='Split filename for the file with dataset splits')
     args = parser.parse_args()
 
     control_vars, valid_vars = initialize_vars(args)
@@ -104,5 +106,8 @@ def parse_args(model_class):
         print_verbose("Using cross entropy loss", args.verbose)
 
     control_vars['num_iter'] = 0
+
+    valid_vars['split_filename'] = args.split_filename
+
     return model, optimizer, control_vars, valid_vars, train_control_vars
 

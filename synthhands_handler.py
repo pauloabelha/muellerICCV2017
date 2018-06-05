@@ -225,16 +225,22 @@ class SynthHandsDataset(Dataset):
     filenamebases = []
     joint_ixs = []
     length = 0
+    num_splits = 0
     dataset_folder = ''
     heatmap_res = None
     crop_hand = False
 
-    def __init__(self, root_folder, type_, joint_ixs=range(21), heatmap_res=(320, 240), crop_hand=False):
+    def __init__(self, root_folder, type_, joint_ixs=range(21), heatmap_res=(320, 240),
+                 split_ix=0, crop_hand=False, splitfilename='dataset_split_files.p'):
         self.type = type_
         self.joint_ixs = joint_ixs
-        dataset_split_files = load_dataset_split(root_folder=root_folder, splitfilename='dataset_split_files.p')
+        self.num_splits = 0
+        dataset_split_files = load_dataset_split(root_folder=root_folder, splitfilename=splitfilename)
         if self.type == 'full':
             self.filenamebases = dataset_split_files['filenamebases']
+        elif self.type == 'split':
+            self.filenamebases = dataset_split_files['filename_bases_list'][split_ix]
+            self.num_splits = len(dataset_split_files['filename_bases_list'])
         else:
             self.filenamebases = dataset_split_files['filenamebases_' + self.type]
         self.length = len(self.filenamebases)

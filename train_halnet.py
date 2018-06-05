@@ -36,7 +36,7 @@ def train(train_loader, model, optimizer, train_vars):
         # get model output
         output = model(data)
         # accumulate loss for sub-mini-batch
-        if train_vars['cross_entropy']:
+        if model.cross_entropy:
             loss_func = my_losses.cross_entropy_loss_p_logq
         else:
             loss_func = my_losses.euclidean_loss

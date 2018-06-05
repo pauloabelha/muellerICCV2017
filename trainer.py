@@ -444,6 +444,8 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_b
         with open(train_vars['output_filepath'], 'a') as f:
             f.write(msg + '\n')
 
+    return tot_joint_loss_avg
+
 
 def get_vars(model_class):
     RANDOM_ID = randint(1000000000, 2000000000)
