@@ -305,3 +305,54 @@ def plot_jornet_colorspace(joints_color_orig_res, filenamebase, dataset_folder, 
     fig = plot_image(data[0:3, :, :].data.numpy(), title=input_img_namebase)
     plot_joints_from_colorspace(joints_color_orig_res, fig=fig)
     return joints_color_orig_res
+
+def plot_bar_chart(bar_values, names_tuple, bar_err=None, horizontal=False, xlabel='', ylabel='', title=''):
+    pos = np.arange(len(names_tuple))
+    if horizontal:
+        if bar_err is None:
+            plt.barh(pos, bar_values, align='center', alpha=0.5)
+        else:
+            plt.barh(pos, bar_values, xerr=bar_err, align='center', alpha=0.5)
+        plt.yticks(pos, names_tuple)
+    else:
+        if bar_err is None:
+            plt.bar(pos, bar_values, align='center', alpha=0.5)
+        else:
+            plt.bar(pos, bar_values, yerr=bar_err, align='center', alpha=0.5)
+        plt.xticks(pos, names_tuple)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+def get_joint_names():
+    joint_names = [''] * 21
+    joint_names[0] = 'Hand root'
+    joint_names[1] = 'Thumb MCP'
+    joint_names[2] = 'Thumb DIP'
+    joint_names[3] = 'Thumb PIP'
+    joint_names[4] = 'Thumb TIP'
+    joint_names[5] = 'Index MCP'
+    joint_names[6] = 'Index DIP'
+    joint_names[7] = 'Index PIP'
+    joint_names[8] = 'Index TIP'
+    joint_names[9] = 'Middle MCP'
+    joint_names[10] = 'Middle DIP'
+    joint_names[11] = 'Middle PIP'
+    joint_names[12] = 'Middle TIP'
+    joint_names[13] = 'Ring MCP'
+    joint_names[14] = 'Ring DIP'
+    joint_names[15] = 'Ring PIP'
+    joint_names[16] = 'Ring TIP'
+    joint_names[17] = 'Little MCP'
+    joint_names[18] = 'Little DIP'
+    joint_names[19] = 'Little PIP'
+    joint_names[20] = 'Little TIP'
+    return joint_names
+
+
+def plot_per_joint_bar_chart(joint_values, joint_std=None, added_avg_value=False, horizontal=False, xlabel='', ylabel='', title=''):
+    joint_names = get_joint_names()
+    if added_avg_value:
+        joint_names.append('Average')
+    plot_bar_chart(bar_values=joint_values, names_tuple=joint_names,  bar_err=joint_std,
+                   horizontal=horizontal, xlabel=xlabel, ylabel=ylabel, title=title)

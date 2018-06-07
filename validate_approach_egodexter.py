@@ -131,6 +131,9 @@ losses_jornet_fingertips = []
 losses_jornet_depth = []
 num_valid_loss_iter = 0
 tot_loss = 0
+
+
+
 for example_ix in range(num_examples):
     start_beg = time.time()
 

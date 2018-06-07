@@ -131,11 +131,13 @@ def get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint
         labels_ix += 1
     return labels_heatmaps, labels_jointvec
 
-def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt'):
+def _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt', orig_img_res=(640, 480)):
     labels_jointspace, labels_colorspace, labels_joint_depth_z = \
         get_labels_depth_and_color(root_folder, filenamebase, label_suffix=label_suffix)
     labels_heatmaps, labels_jointvec = \
         get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint_ixs, heatmap_res)
+    labels_colorspace[:, 0] = labels_colorspace[:, 0] * (heatmap_res[0] / orig_img_res[0])
+    labels_colorspace[:, 1] = labels_colorspace[:, 1] * (heatmap_res[1] / orig_img_res[1])
     labels_jointvec = torch.from_numpy(labels_jointvec).float()
     labels_heatmaps = torch.from_numpy(labels_heatmaps).float()
     return labels_heatmaps, labels_jointvec, labels_colorspace, labels_joint_depth_z
@@ -170,9 +172,9 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
         labels_jointvec = torch.from_numpy(labels_jointvec).float()
     else:
         data = _get_data(root_folder, filenamebase, heatmap_res)
-        labels_heatmaps, labels_jointvec, _, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
+        labels_heatmaps, labels_jointvec, labels_colorspace, _ = _get_labels(root_folder, filenamebase, heatmap_res, joint_ixs)
         handroot = labels_jointvec[0:3]
-    labels = labels_heatmaps, labels_jointvec, handroot
+    labels = labels_colorspace, labels_jointvec, labels_heatmaps, handroot
     return data, labels
 
 class SynthHandsDataset(Dataset):
