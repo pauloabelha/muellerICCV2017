@@ -1,9 +1,7 @@
 import numpy as np
 import torch
 from torch.autograd import Variable
-
 import camera
-import synthhands_handler
 
 
 def numpy_swap_cols(np_array):
@@ -147,12 +145,15 @@ def jornet_local_to_global_joints(jornet_joints, handroot):
     return jornet_joints_global
 
 
-def joints_globaldepth_to_colorspace(jornet_joints_global, handroot, img_res=(320, 240), orig_res=(640, 480)):
-    joints_colorspace = np.zeros((21, 2))
+def joints_globaldepth_to_colorspace(jornet_joints_global, dataset_handler, img_res=(320, 240), orig_res=(640, 480)):
+    joints_colorspace = np.zeros((21, 3))
     for i in range(21):
-        u, v, z = camera.joint_depth2color(jornet_joints_global[i, :], synthhands_handler.DEPTH_INTR_MTX)
+        u, v, z = camera.joint_depth2color(jornet_joints_global[i, :], dataset_handler.DEPTH_INTR_MTX)
         joints_colorspace[i, 0] = u
         joints_colorspace[i, 1] = v
+        joints_colorspace[i, 2] = z
     joints_colorspace[:, 0] *= img_res[0] / orig_res[0]
     joints_colorspace[:, 1] *= img_res[1] / orig_res[1]
     return joints_colorspace
+
+

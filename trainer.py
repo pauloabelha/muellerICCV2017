@@ -321,24 +321,23 @@ def print_header_info(model, dataset_loader, train_vars):
         with open(train_vars['output_filepath'], 'w+') as f:
             f.write(msg + '\n')
 
-def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_best=True):
+def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_best=True, save_a_checkpoint=True):
     model_class_name = type(model).__name__
     verbose = train_vars['verbose']
     print_verbose("", verbose)
-    print_verbose("-------------------------------------------------------------------------------------------",
-                  verbose)
-    print_verbose("Saving checkpoints:", verbose)
-    print_verbose("-------------------------------------------------------------------------------------------",
-                  verbose)
+    print_verbose("-------------------------------------------------------------------------------------------", verbose)
+    if save_a_checkpoint:
+        print_verbose("Saving checkpoints:", verbose)
+        print_verbose("-------------------------------------------------------------------------------------------",  verbose)
+        checkpoint_model_dict = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_vars': train_vars,
+        }
+        save_checkpoint(checkpoint_model_dict, filename=vars['checkpoint_filenamebase'] + '.pth.tar')
     if save_best:
         save_checkpoint(vars['best_model_dict'],
-                                filename=vars['checkpoint_filenamebase'] + 'best.pth.tar')
-    checkpoint_model_dict = {
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'train_vars': train_vars,
-    }
-    save_checkpoint(checkpoint_model_dict, filename=vars['checkpoint_filenamebase'] + '.pth.tar')
+                        filename=vars['checkpoint_filenamebase'] + 'best.pth.tar')
     msg = ''
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"

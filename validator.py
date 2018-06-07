@@ -85,6 +85,7 @@ def parse_args(model_class):
 
     valid_vars['root_folder'] = args.root_folder
     valid_vars['use_cuda'] = args.use_cuda
+    control_vars['log_interval'] = args.log_interval
 
     random_int_str = args.checkpoint_filepath.split('_')[-2]
     valid_vars['checkpoint_filenamebase'] = 'valid_halnet_log_' + str(random_int_str) + '_'

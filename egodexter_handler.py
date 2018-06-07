@@ -1,10 +1,13 @@
 import numpy as np
 from torch.utils.data.dataset import Dataset
+import synthhands_handler
 from dataset_handler import load_dataset_split
 import camera
 import torch
 from converter import convert_labels_2D_new_res, color_space_label_to_heatmap
 from io_image import read_RGB_image
+
+SPLIT_PREFIX_LENGTH = 11
 
 DEPTH_INTR_MTX =     np.array([[475.62,         0.0,            311.125],
                                [0.0,            475.62,         245.965],
@@ -62,25 +65,31 @@ class EgoDexterDataset(Dataset):
     dataset_folder = ''
     heatmap_res = None
     files_annotations = {}
+    files_annotations_3D = {}
     img_labels = {}
+    img_labels_3D = {}
 
-    def __init__(self, type_, root_folder, img_res):
+    def __init__(self, type_, root_folder, heatmap_res, split_ix=0, joint_ixs=range(21), splitfilename='egodexter_split_10.p'):
         self.type = type_
         self.root_folder = root_folder
-        self.img_res = img_res
+        self.img_res = heatmap_res
         self.joint_ixs = range(21)
-        dataset_split_files = load_dataset_split(root_folder=root_folder, splitfilename=DATASET_SPLIT_FILENAME)
+        dataset_split_files = load_dataset_split(root_folder=root_folder, splitfilename=splitfilename)
         if self.type == 'full':
             self.filenamebases = dataset_split_files['filenamebases']
-            self.file_ixs = dataset_split_files['file_ixs']
+            self.file_ixs = dataset_split_files['ixs_randomize']
+        elif self.type == 'split':
+            self.filenamebases = dataset_split_files['filename_bases_list'][split_ix]
+            self.num_splits = len(dataset_split_files['filename_bases_list'])
         else:
             self.filenamebases = dataset_split_files['filenamebases_' + self.type]
             self.file_ixs = dataset_split_files['file_ixs_' + self.type]
         self.length = len(self.filenamebases)
         self.dataset_folder = root_folder
-        self.img_res = img_res
+        self.img_res = heatmap_res
 
         self._fill_files_annotations()
+        self._fill_files_annotations_3D()
         self._fill_img_labels()
 
         for idx in range(10):
@@ -94,7 +103,7 @@ class EgoDexterDataset(Dataset):
         return self.length
 
     def get_image_and_labels(self, idx, as_torch=True):
-        img_labels_2D, img_labels_heatmaps = self.get_labels(idx)
+        img_labels_2D, img_labels_heatmaps, img_labels_3D = self.get_labels(idx)
         img_data = self.get_image(idx, as_torch=as_torch)
         for i in range(5):
             if img_data[3, img_labels_2D[i, 0], img_labels_2D[i, 1]] == 0:
@@ -102,7 +111,7 @@ class EgoDexterDataset(Dataset):
         if as_torch:
             img_labels_2D = torch.from_numpy(img_labels_2D).float()
             img_labels_heatmaps = torch.from_numpy(img_labels_heatmaps).float()
-        return (img_data, (img_labels_2D, img_labels_heatmaps))
+        return (img_data, (img_labels_2D, img_labels_heatmaps, img_labels_3D))
 
     def get_image(self, idx, as_torch=True, color_on_depth_suffix='_color_on_depth.png', depth_suffix='_depth.png'):
         filenamebase = self.filenamebases[idx]
@@ -111,7 +120,7 @@ class EgoDexterDataset(Dataset):
         color_on_depth_image = read_RGB_image(color_on_depth_image_filepath, new_res=self.img_res)
         # load depth
         filenamebase_split = filenamebase.split('/')
-        depth_filenamebase = '/'.join(filenamebase_split[0:2]) + '/depth/' + filenamebase_split[-1]
+        depth_filenamebase = '/'.join(filenamebase_split[0:1]) + '/depth/' + filenamebase_split[-1]
         depth_image_filepath = self.root_folder + depth_filenamebase + depth_suffix
         depth_image = read_RGB_image(depth_image_filepath, new_res=self.img_res)
         depth_image = np.array(depth_image)
@@ -122,15 +131,19 @@ class EgoDexterDataset(Dataset):
         img_data = RGBD_image
         if as_torch:
             img_data = torch.from_numpy(RGBD_image).float()
+
+
+
         return img_data
 
     def get_labels(self, idx):
         img_labels_2D = self.img_labels[self.filenamebases[idx]].astype(int)
+        img_labels_3D = self.img_labels_3D[self.filenamebases[idx]].astype(int)
         for label_ix in range(img_labels_2D.shape[0]):
             img_labels_2D[label_ix, :] = convert_labels_2D_new_res(img_labels_2D[label_ix, :],
                                                                    self.orig_img_res, self.img_res)
         img_labels_heatmaps = self.get_labels_heatmaps(img_labels_2D)
-        return img_labels_2D, img_labels_heatmaps
+        return img_labels_2D, img_labels_heatmaps, img_labels_3D
 
     def get_labels_heatmaps(self, img_labels_2D):
         labels_heatmaps = np.zeros((len(self.joint_ixs), self.img_res[0], self.img_res[1]))
@@ -145,14 +158,15 @@ class EgoDexterDataset(Dataset):
         self.img_labels = {}
         for filenamebase in self.filenamebases:
             filenamebase_split = filenamebase.split('/')
-            img_data_folder = filenamebase_split[1] + '/'
+            img_data_folder = filenamebase_split[0] + '/'
             img_number = int(filenamebase_split[-1][-5:])
             self.img_labels[filenamebase] = self.files_annotations[img_data_folder][img_number, :]
+            self.img_labels_3D[filenamebase] = self.files_annotations_3D[img_data_folder][img_number, :]
 
 
     def _fill_files_annotations(self):
         for data_folder in self.data_folders:
-            filepath = self.root_folder + 'data/' + data_folder + 'annotation.txt'
+            filepath = self.root_folder + data_folder + 'annotation.txt'
             with open(filepath, 'rb') as f:
                 n_lines = 0
                 for line in f:
@@ -170,6 +184,28 @@ class EgoDexterDataset(Dataset):
                         pair_ix += 1
                     line_ix+= 1
             self.files_annotations[data_folder] = values
+
+    def _fill_files_annotations_3D(self):
+        for data_folder in self.data_folders:
+            filepath = self.root_folder + data_folder + 'annotation.txt_3D.txt'
+            with open(filepath, 'rb') as f:
+                n_lines = 0
+                for line in f:
+                    n_lines += 1
+                f.seek(0)
+                values = np.zeros((n_lines, 5, 3))
+                line_ix = 0
+                for line in f:
+                    line_split = line.decode("utf-8").split(';')[:-1]
+                    pair_ix = 0
+                    for pair_str in line_split:
+                        pair_split = pair_str.split(',')
+                        values[line_ix, pair_ix, 0] = float(pair_split[0])
+                        values[line_ix, pair_ix, 1] = float(pair_split[1])
+                        values[line_ix, pair_ix, 2] = float(pair_split[2])
+                        pair_ix += 1
+                    line_ix += 1
+            self.files_annotations_3D[data_folder] = values
 
     def get_filenamebase(self, idx):
         return self.filenamebases[idx]

@@ -73,8 +73,6 @@ def calculate_loss_JORNet(loss_func, output, target_heatmaps, target_joints, joi
     loss_heatmaps = 0
     loss_joints = 0
     for loss_ix in range(4):
-        if loss_ix < 3:
-            continue
         loss_sub, loss_heatmaps_sub, loss_joints_sub =\
             calculate_subloss_JORNet(loss_func, output[loss_ix], output[loss_ix+4],
                                      target_heatmaps, target_joints, joint_ixs,
@@ -84,6 +82,25 @@ def calculate_loss_JORNet(loss_func, output, target_heatmaps, target_joints, joi
         loss_heatmaps += loss_heatmaps_sub
         loss_joints += loss_joints_sub
     return loss, loss_heatmaps, loss_joints
+
+def calculate_loss_JORNet_for_valid(loss_func, output, target_heatmaps, target_joints, joint_ixs,
+                          weights_heatmaps_loss, weights_joints_loss, iter_size):
+    loss = 0
+    loss_heatmaps = 0
+    loss_joints = 0
+    loss_main = 0
+    for loss_ix in range(4):
+        loss_sub, loss_heatmaps_sub, loss_joints_sub =\
+            calculate_subloss_JORNet(loss_func, output[loss_ix], output[loss_ix+4],
+                                     target_heatmaps, target_joints, joint_ixs,
+                                     weights_heatmaps_loss[loss_ix], weights_joints_loss[loss_ix],
+                                     iter_size)
+        if loss_ix == 3:
+            loss_main = loss_joints_sub
+        loss += loss_sub
+        loss_heatmaps += loss_heatmaps_sub
+        loss_joints += loss_joints_sub
+    return loss, loss_heatmaps, loss_joints, loss_main
 
 def calculate_loss_main(output, target, iter_size):
     loss_main = 0

@@ -1,6 +1,7 @@
 import torch
 import argparse
 import HALNet, JORNet
+import converter
 import synthhands_handler
 import visualize
 import trainer
@@ -48,7 +49,7 @@ def plot_halnet_heatmap(halnet_mainout, img_numpy, heatmap_ix, filenamebase):
 def plot_halnet_joints_from_heatmaps_crop(halnet_main_out, img_numpy, filenamebase, plot=True):
     labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
     data_crop, crop_coords, labels_heatmaps, labels_colorspace = \
-        synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
+        converter.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
     if plot:
         fig = visualize.create_fig()
         visualize.plot_image(data_crop, title=filenamebase, fig=fig)

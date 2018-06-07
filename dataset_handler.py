@@ -88,7 +88,7 @@ def dataset_n_splits(dataset_root_folder, split_filename, filenamebases, save_fo
         with open(save_folder + split_filename, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def save_dataset_split(dataset_root_folder, split_filename, prefix_length, num_splits=0, save_folder=None, perc_train=0.7, perc_valid=0.15, perc_test=0.15):
+def save_dataset_split(dataset_root_folder, split_filename, dataset_handler, num_splits=0, save_folder=None, perc_train=0.7, perc_valid=0.15, perc_test=0.15):
     print("Recursively traversing all files in root folder: " + dataset_root_folder)
     orig_num_tabs = len(dataset_root_folder.split('/'))
     len_root_folder = len(dataset_root_folder)
@@ -105,7 +105,7 @@ def save_dataset_split(dataset_root_folder, split_filename, prefix_length, num_s
     for root, dirs, files in os.walk(dataset_root_folder, topdown=True):
         for filename in sorted(files):
             if filename[-18:-4] == 'color_on_depth':
-                filenamebases[ix] = os.path.join(root, filename[0:prefix_length])[len_root_folder:]
+                filenamebases[ix] = os.path.join(root, filename[0:dataset_handler.SPLIT_PREFIX_LENGTH])[len_root_folder:]
                 ix += 1
         tabs = '  ' * (len(root.split('/')) - orig_num_tabs)
         print(str(ix) + '/' + str(num_files_to_process) + ' files processed : ' + tabs + root)

@@ -1,5 +1,18 @@
 import numpy as np
 
+def joint_color2depth_new(u, v, proj_const, dataset_handler):
+    ''' Gets the joint in the color image space
+
+    :param joint: join in depth camera space (mm)
+    :param depth_intr_mtx: depth camera intrinsic params
+    :return: u and v of joint in pixel space
+    '''
+    joint_uv = np.array([u, v, proj_const]).reshape((3,))
+    #joint_uv *= proj_const
+    mtx = np.dot(dataset_handler.COLOR_INTR_MTX, np.eye(3))
+    joint_depth = np.dot(mtx, joint_uv)
+    return joint_depth
+
 def joint_color2depth(u, v, proj_const, depth_intr_matrix):
     ''' Gets the joint in the color image space
 

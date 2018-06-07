@@ -5,6 +5,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+
+import converter
 import trainer
 import synthhands_handler
 import egodexter_handler
@@ -14,6 +16,7 @@ import HALNet, JORNet
 import time
 import camera
 import visualize
+import io_image
 
 parser = argparse.ArgumentParser(description='Train a hand-tracking deep neural network')
 parser.add_argument('-i', dest='input_img_namebase', default='', type=str, required=False,
@@ -130,7 +133,7 @@ for i in range(100):
     print('Handroot (depthspace):\t{}'.format(handroot))
     labels_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
 
-    data_crop, _, _, _ = synthhands_handler.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
+    data_crop, _, _, _ = io_image.crop_image_get_labels(img_numpy, labels_colorspace, range(21))
     batch_jornet = conv.data_to_batch(data_crop)
     print_time('JORNet image conversion: ', time.time() - start)
 
