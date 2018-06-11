@@ -63,7 +63,7 @@ def train(train_loader, model, optimizer, train_vars):
         # start time counter
         start = time.time()
         # get data and target as torch Variables
-        target_heatmaps, target_joints, target_joints_z = target
+        _, target_joints, target_heatmaps, target_joints_z = target
         # make target joints be relative
         target_joints = target_joints[:, 3:]
         data, target_heatmaps = Variable(data), Variable(target_heatmaps)
