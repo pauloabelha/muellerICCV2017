@@ -280,16 +280,11 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, cr
         shuffle=False)
     if verbose:
         data_example, label_example = dataset[0]
-        if dataset_type == 'prior':
-            labels_heatmaps, label_joints, label_handroot, label_prior = label_example
-        else:
-            labels_heatmaps, label_joints, label_handroot = label_example
+        labels_colorspace, labels_jointvec, labels_heatmaps, handroot = label_example
         print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
         print("\tExample shape: " + str(data_example.shape))
         print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))
-        print("\tLabel joint vector shape (N_JOINTS * 3): " + str(label_joints.shape))
-        if dataset_type == 'prior':
-            print("\tLabel prior shape (pair * dist): " + str(label_prior.shape))
+        print("\tLabel joint vector shape (N_JOINTS * 3): " + str(labels_jointvec.shape))
     return dataset_loader
 
 def get_SynthHands_trainloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):
