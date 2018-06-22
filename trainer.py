@@ -168,7 +168,8 @@ def parse_args(model_class, random_id=-1):
     else:
         print_verbose("Not using CUDA", args.verbose)
 
-    if args.override:
+
+    if args.override or args.checkpoint_filepath == '':
         train_vars['root_folder'] = args.root_folder
         train_vars['use_cuda'] = args.use_cuda
         train_vars['log_interval'] = args.log_interval
