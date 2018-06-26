@@ -16,7 +16,7 @@ import camera
 import visualize
 
 
-MAX_NUM_EXAMPLES = 10
+MAX_NUM_EXAMPLES = 30
 IMG_RES = (320, 240)
 
 def print_time(str_, time_diff):
@@ -183,7 +183,6 @@ for example_ix in range(num_examples):
     print_time('\t\tJORNet image conversion: ', time.time() - start)
 
 
-
     start = time.time()
     output_jornet = jornet(batch_jornet)
     print_time('\t\tJORNet pass: ', time.time() - start)
@@ -291,7 +290,36 @@ for example_ix in range(num_examples):
     print('\t\tStddev depth loss: {}'.format(np.std(losses_jornet_depth_tot)))
     print_divisor()
 
-'''
+num_ranges = 30
+max_range = 30
+frames_per_mm_range = np.zeros((num_ranges, 1))
+losses_jornet_joints_tot_array = np.array(losses_jornet_joints_tot)
+for i in range(num_ranges):
+    ixs = np.array(losses_jornet_joints_tot_array < i * (max_range/num_ranges))
+    frames_per_mm_range[i] = (np.sum(ixs) / len(losses_jornet_joints_tot)) * 100
+    print(frames_per_mm_range[i])
+print_divisor()
+
+visualize.plot_line(frames_per_mm_range, xlabel='Error threshold (pixels)', ylabel='Percentage of frames',
+                    fontsize=30, tickwidth=10, linewidth=10)
+visualize.show()
+
+num_mm_ranges = 60
+max_range = 60
+frames_per_mm_range = np.zeros((num_mm_ranges, 1))
+losses_jornet_depth_tot_array = np.array(losses_jornet_depth_tot)
+for i in range(num_mm_ranges):
+    ixs = np.array(losses_jornet_depth_tot_array < i * (max_range/num_mm_ranges))
+    frames_per_mm_range[i] = (np.sum(ixs) / len(losses_jornet_depth_tot)) * 100
+    print(frames_per_mm_range[i])
+print_divisor()
+
+visualize.plot_line(frames_per_mm_range, xlabel='Error threshold (mm)', ylabel='Percentage of frames',
+                    fontsize=30, tickwidth=10, linewidth=10)
+visualize.show()
+
+
+
 visualize.plot_per_joint_bar_chart(halnet_means_per_joint, halnet_err_per_joint, added_avg_value=True,
                                    horizontal=True, xlabel='Joint dist loss (pixels)',
                                    ylabel='Joint name', title='SynthHands : HALNet: Loss per Joint (pixels)')
@@ -302,8 +330,9 @@ visualize.plot_per_joint_bar_chart(jornet_means_per_joint, jornet_err_per_joint,
                                    ylabel='Joint name', title='SynthHands : JORNet: Loss per Joint (pixels)')
 visualize.show()
 
-'''
 visualize.plot_per_joint_bar_chart(jornet_means_per_joint_depth, jornet_err_per_joint_depth, added_avg_value=True,
                                    horizontal=True, xlabel='Joint dist loss (mm)',
                                    ylabel='Joint name', title='SynthHands : JORNet: Loss per Joint (depth)')
 visualize.show()
+
+

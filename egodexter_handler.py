@@ -1,6 +1,5 @@
 import numpy as np
 from torch.utils.data.dataset import Dataset
-import synthhands_handler
 from dataset_handler import load_dataset_split
 import camera
 import torch

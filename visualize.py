@@ -1,5 +1,6 @@
 import converter
 import io_image
+import matplotlib
 
 try:
     import cv2
@@ -178,6 +179,21 @@ def plot_img_RGB(img_RGB, fig=None, title=''):
     plt.title(title)
     return fig
 
+def plot_fingertips(fingertips_colorspace, handroot=None, fig=None, linewidth=10):
+    if fig is None:
+        fig = plt.figure()
+    joints_names = ['Thumb TIP', 'Index TIP', 'Middle TIP', 'Ring TIP', 'Little TIP']
+    legends = []
+    for i in range(5):
+        color = 'C' + str(i+1)
+        plt.scatter(fingertips_colorspace[i, 0], fingertips_colorspace[i, 1], color=color, linewidths=linewidth)
+        legends.append(mpatches.Patch(color=color, label=joints_names[i]))
+    if not handroot is None:
+        plt.scatter(handroot[0], handroot[1], color='C0', linewidths=linewidth)
+        legends.append(mpatches.Patch(color='C0', label='Hand root'))
+    plt.legend(handles=legends)
+    return fig
+
 def plot_joints(joints_colorspace, fig=None, show_legend=True, linewidth=4):
     if fig is None:
         fig = plt.figure()
@@ -283,8 +299,13 @@ def plot_image_and_heatmap(heatmap, data, title=''):
     heatmap = heatmap.swapaxes(0, 1)
     plt.imshow(255 * heatmap, alpha=0.6, cmap='hot')
 
-def plot_line(values, title=''):
-    plt.plot(values)
+def plot_line(values, fontsize=22, linewidth=3, tickwidth=3, xlabel='', ylabel='', title=''):
+    plt.plot(values, linewidth=linewidth)
+    ax = plt.gca()
+    matplotlib.rcParams.update({'font.size': fontsize})
+    ax.tick_params(width=tickwidth)
+    plt.xlabel(xlabel, fontsize=fontsize)
+    plt.ylabel(ylabel, fontsize=fontsize)
     plt.title(title)
 
 def title(title):
@@ -349,9 +370,21 @@ def get_joint_names():
     joint_names[20] = 'Little TIP'
     return joint_names
 
+def get_fingertip_names():
+    joint_names = [''] * 5
+    joint_names[0] = 'Thumb TIP'
+    joint_names[1] = 'Index TIP'
+    joint_names[2] = 'Middle TIP'
+    joint_names[3] = 'Ring TIP'
+    joint_names[4] = 'Little TIP'
+    return joint_names
 
-def plot_per_joint_bar_chart(joint_values, joint_std=None, added_avg_value=False, horizontal=False, xlabel='', ylabel='', title=''):
-    joint_names = get_joint_names()
+
+def plot_per_joint_bar_chart(joint_values, joint_std=None, fingertips_only=False, added_avg_value=False, horizontal=False, xlabel='', ylabel='', title=''):
+    if fingertips_only:
+        joint_names = get_fingertip_names()
+    else:
+        joint_names = get_joint_names()
     if added_avg_value:
         joint_names.append('Average')
     plot_bar_chart(bar_values=joint_values, names_tuple=joint_names,  bar_err=joint_std,

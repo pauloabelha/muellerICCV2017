@@ -12,11 +12,8 @@ import argparse
 import converter as conv
 import HALNet, JORNet
 import time
-import camera
 import visualize
 
-
-MAX_NUM_EXAMPLES = 10
 IMG_RES = (320, 240)
 
 def print_time(str_, time_diff):
@@ -63,14 +60,16 @@ def get_image_as_data(dataset_folder, input_img_namebase, dataset_name, img_res)
         data = egodexter_handler.get_data(dataset_folder, input_img_namebase, img_res=img_res)
     return data
 
-def load_examples_to_memory(num_labels, dataset_folder, img_res):
+def load_examples_to_memory(start_ix, end_ix, dataset):
     data = []
     img_paths = []
-    egodexter = egodexter_handler.EgoDexterDataset('full', dataset_folder, img_res)
-    for i in range(num_labels):
-        img_paths.append(egodexter.filenamebases[i])
-        img_data, img_labels = egodexter[i]
-        data.append((img_data, img_labels))
+    i = start_ix
+    while i < end_ix:
+        img_paths.append(dataset.filenamebases[i])
+        img_data, img_labels = dataset[i]
+        img_labels_2D, img_labels_heatmaps, img_labels_3D = img_labels
+        data.append((img_data, (img_labels_2D, img_labels_heatmaps, img_labels_3D)))
+        i += 1
     return data, img_paths
 
 def parse_args():
@@ -85,6 +84,10 @@ def parse_args():
                         help='Whether to use cuda for training')
     parser.add_argument('-o', dest='output_filepath', default='',
                         help='Output file for logging')
+    parser.add_argument('-s', dest='start_ix', default='', type=int, required=True,
+                        help='Dataset starting example ix')
+    parser.add_argument('-e', dest='end_ix', default='', type=int, required=True,
+                        help='Dataset end example ix')
     return parser.parse_args()
 
 def print_divisor(num=100):
@@ -93,8 +96,8 @@ def print_divisor(num=100):
 args = parse_args()
 dataset_name = args.dataset_folder.split('/')[-2]
 
-egodexter = egodexter_handler.EgoDexterDataset('full', args.dataset_folder, IMG_RES)
-num_examples = min(MAX_NUM_EXAMPLES, len(egodexter))
+egodexter = egodexter_handler.EgoDexterDataset(root_folder=args.dataset_folder, type_='full', heatmap_res=IMG_RES)
+num_examples = args.end_ix - args.start_ix
 
 print_divisor()
 print('Arguments')
@@ -107,7 +110,7 @@ print('Dataset: ')
 print('\tSize of dataset: {}'.format(len(egodexter)))
 print('\tNumber of examples to process: {}'.format(num_examples))
 start = time.time()
-dataset_data, img_paths = load_examples_to_memory(num_examples, args.dataset_folder, img_res=IMG_RES)
+dataset_data, img_paths = load_examples_to_memory(args.start_ix, args.end_ix, egodexter)
 print_time('\tLoaded examples to memory: ', time.time() - start)
 print_divisor()
 
@@ -126,16 +129,24 @@ jornet, _, _, _ = trainer.load_checkpoint(filename=args.jornet_filepath,
 print_time('\tJORNet loaded: ', time.time() - start)
 print_divisor()
 
-losses_halnet_fingertips = []
-losses_jornet_fingertips = []
-losses_jornet_depth = []
+NUM_JOINTS = 5
+dataset_name = 'EgoDexter'
+
+def get_label_index(dataset_name, idx):
+    if dataset_name == 'EgoDexter':
+        idx = (idx+1)*4
+    return idx
+
+losses_halnet_per_joints = np.zeros((num_examples, NUM_JOINTS))
+losses_halnet_joints_tot = []
+losses_jornet_per_joints = np.zeros((num_examples, NUM_JOINTS))
+losses_jornet_joints_tot = []
+losses_jornet_per_joints_depth = np.zeros((num_examples, NUM_JOINTS))
+losses_jornet_depth_tot = []
 num_valid_loss_iter = 0
 tot_loss = 0
-
-
-
-for example_ix in range(num_examples):
-    start_beg = time.time()
+example_ix = 0
+while example_ix < (args.end_ix - args.start_ix):
 
     print('Processing example #{}: {}'.format(example_ix, img_paths[example_ix]))
     dataset_datum = dataset_data[example_ix]
@@ -143,17 +154,6 @@ for example_ix in range(num_examples):
     img_numpy = img_data.data.numpy()
     img_labels_2D, img_labels_heatmaps, img_labels_3D = img_labels
     img_labels_2D = img_labels_2D.data.numpy()
-
-
-    #print('\tImage labels (2D ; 3D):')
-    #for i in range(5):
-    #    if np.sum(img_labels_2D[i, :]) > 0:
-    #        depth_const = img_numpy[3, int(img_labels_2D[i, 0]), int(img_labels_2D[i, 1])]
-    #        print('\t\tFinger tip {}: {} {}; {}'.format(i, img_labels_2D[i, :], depth_const, img_labels_3D[i, :]))
-    #        print('\t\tFinger tip {}: {}'.format(i, img_labels_2D[i, :]))
-    #    else:
-    #        print('\t\tFinger tip {}: {}'.format(i, img_labels_2D[i, :]))
-    #print_divisor()
 
     print('\tHALNet:')
     start = time.time()
@@ -171,117 +171,195 @@ for example_ix in range(num_examples):
     # get halnet joints in colorspace from heatmaps
     halnet_joints_colorspace = conv.heatmaps_to_joints_colorspace(halnet_main_out)
 
-    print('\tHALNet heatmap pixel loss:')
+    print('\tHALNet joint pixel loss:')
     num_valid_loss = 0
-    loss_halnet_fingertips = 0
-    for i in range(5):
-        fingertip_ix = (i+1)*4
+    loss_halnet_joints = 0
+    halnet_out_fingertips = np.zeros((5, 2))
+    for i in range(NUM_JOINTS):
+        idx = get_label_index(dataset_name, i)
         if np.sum(img_labels_2D[i, :]) > 0:
-            curr_loss = np.linalg.norm(img_labels_2D[i, :] - halnet_joints_colorspace[fingertip_ix, :])
-            loss_halnet_fingertips += curr_loss
-            print('\t\t\tFinger tip {}: {}\t{} : {}'.format(i, img_labels_2D[i, :], halnet_joints_colorspace[fingertip_ix, :], curr_loss))
+            curr_loss = np.linalg.norm(img_labels_2D[i, :] - halnet_joints_colorspace[idx, :])
+            loss_halnet_joints += curr_loss
             num_valid_loss += 1
+            losses_halnet_per_joints[example_ix, i] = curr_loss
+            print('\t\t\tJoint {}: {}\t{} : {}'.format(i, img_labels_2D[i, :], halnet_joints_colorspace[idx, :], curr_loss))
         else:
-            print('\t\t\tFinger tip {}: {}\t{}'.format(i, 'No label', halnet_joints_colorspace[fingertip_ix, :]))
+            print('\t\t\tJoint {}: {}\t{}'.format(i, 'No label', halnet_joints_colorspace[idx, :]))
+        halnet_out_fingertips[i, :] = halnet_joints_colorspace[idx, :]
     if num_valid_loss > 0:
-        loss_halnet_fingertips /= num_valid_loss
-        losses_halnet_fingertips.append(loss_halnet_fingertips)
-        print('\t\tAverage loss for HALNet fingertips: {}'.format(loss_halnet_fingertips))
+        losses_halnet_joints_tot.append(loss_halnet_joints / num_valid_loss)
+        print('\t\tAverage loss for HALNet joints: {}'.format(losses_halnet_joints_tot[-1]))
     else:
-        print('\t\tAverage loss for  HALNet fingertips: {}'.format('No loss'))
+        print('\t\tNo Loss Calculation due to lack of labels')
     print_divisor()
 
     #fig = visualize.plot_image(img_numpy)
+    #visualize.plot_fingertips(img_labels_2D, fig=fig)
     #visualize.plot_joints(halnet_joints_colorspace, fig=fig)
+    #visualize.plot_fingertips(halnet_out_fingertips, handroot=halnet_joints_colorspace[0, :], fig=fig)
     #visualize.show()
 
     print('\tJORNet:')
-
     start = time.time()
     data_crop, crop_coords, _, _ = io_image.crop_image_get_labels(img_numpy, halnet_joints_colorspace)
     batch_jornet = conv.data_to_batch(data_crop)
     print_time('\t\tJORNet image conversion: ', time.time() - start)
+
+    #visualize.plot_image(data_crop)
+    #visualize.show()
 
     start = time.time()
     output_jornet = jornet(batch_jornet)
     print_time('\t\tJORNet pass: ', time.time() - start)
 
     _, img_labels_2D_cropped = io_image.get_labels_cropped_heatmaps(
-        img_labels_2D, joint_ixs=range(5),
-        crop_coords=crop_coords, heatmap_res=(128, 128))
+        img_labels_2D, joint_ixs=range(NUM_JOINTS), crop_coords=crop_coords, heatmap_res=(128, 128))
 
     print('\tImage labels (2D cropped to (128, 128)):')
-    for i in range(5):
+    for i in range(NUM_JOINTS):
         depth_const = img_numpy[3, int(img_labels_2D_cropped[i, 0]), int(img_labels_2D_cropped[i, 1])]
-        if np.sum(img_labels_2D[i, :]) > 0:
-            print('\t\tFinger tip {}: {}'.format(i, img_labels_2D_cropped[i, :]))
-        else:
-            print('\t\tFinger tip {}: No label'.format(i))
-    print_divisor()
-
-    print('\tJORNet heatmap pixel loss:')
-    output_jornet_heatmaps_main = output_jornet[3][0].data.numpy()
-    jornet_joints_colorspace = conv.heatmaps_to_joints_colorspace(output_jornet_heatmaps_main)
-    num_valid_loss = 0
-    loss_jornet_fingertips = 0
-    for i in range(5):
-        fingertip_ix = (i + 1) * 4
-        if np.sum(img_labels_2D[i, :]) > 0:
-            curr_loss = np.linalg.norm(img_labels_2D_cropped[i, :] - jornet_joints_colorspace[fingertip_ix, :])
-            loss_jornet_fingertips += curr_loss
-            print('\t\t\tFinger tip {}: {}\t{} : {}'.format(i, img_labels_2D_cropped[i, :], jornet_joints_colorspace[fingertip_ix, :],
-                                                 curr_loss))
-            num_valid_loss += 1
-        else:
-            print('\t\t\tFinger tip {}: {}\t{}'.format(i, 'No label', jornet_joints_colorspace[fingertip_ix, :]))
-    if num_valid_loss > 0:
-        loss_jornet_fingertips /= num_valid_loss
-        losses_jornet_fingertips.append(loss_jornet_fingertips)
-        print('\t\tAverage loss for JORNet fingertips: {}'.format(loss_jornet_fingertips))
-    else:
-        print('\t\tAverage loss for  JORNet fingertips: {}'.format('No loss'))
+        print('\t\tFinger tip {}: {}'.format(i, img_labels_2D_cropped[i, :]))
     print_divisor()
 
     #fig = visualize.plot_image(data_crop)
-    #visualize.plot_joints(jornet_joints_colorspace, fig=fig)
+    #visualize.plot_fingertips(img_labels_2D_cropped, fig=fig)
+    #visualize.show()
+
+    print('\tJORNet joint pixel loss:')
+    output_jornet_heatmaps_main = output_jornet[3][0].data.numpy()
+    jornet_joints_colorspace = conv.heatmaps_to_joints_colorspace(output_jornet_heatmaps_main)
+    num_valid_loss = 0
+    loss_jornet_joints = 0
+    for i in range(NUM_JOINTS):
+        curr_loss = np.linalg.norm(img_labels_2D_cropped[i, :] - jornet_joints_colorspace[i, :])
+        loss_jornet_joints += curr_loss
+        losses_jornet_per_joints[example_ix, i] = curr_loss
+        print('\t\t\tJoint {}: {}\t{} : {}'.format(i, img_labels_2D_cropped[i, :], jornet_joints_colorspace[i, :], curr_loss))
+    losses_jornet_joints_tot.append(loss_jornet_joints / NUM_JOINTS)
+    print('\t\tAverage loss for HALNet joints: {}'.format(losses_jornet_joints_tot[-1]))
+    print_divisor()
+
+    #fig = visualize.plot_image(data_crop)
+    #visualize.plot_fingertips(img_labels_2D_cropped, fig=fig)
+    #visualize.plot_fingertips(jornet_joints_colorspace, handroot=0, fig=fig)
     #visualize.show()
 
     output_jornet_joints_main = output_jornet[7][0].data.cpu().numpy().reshape((20, 3))
-    handroot = camera.joint_color2depth(halnet_joints_colorspace[0, 0],
-                                        halnet_joints_colorspace[0, 1],
-                                        300,
-                                        egodexter_handler.DEPTH_INTR_MTX_INV)
+    #handroot = camera.joint_color2depth(halnet_joints_colorspace[0, 0],
+    #                                    halnet_joints_colorspace[0, 1],
+    #                                    200,
+    #                                    synthhands_handler.DEPTH_INTR_MTX_INV)
+    handroot = np.zeros((1, 3))
     jornet_joints_global = conv.jornet_local_to_global_joints(output_jornet_joints_main, handroot)
+
+
+    #fig, ax = visualize.plot_3D_joints(jornet_joints_global)
+    #visualize.plot_3D_joints(img_labels_3D, fig=fig, ax=ax)
+    #visualize.show()
 
     print('\tJORNet joint depth loss:')
     num_valid_loss = 0
     loss_jornet_depth = 0
-    for i in range(5):
-        fingertip_ix = (i + 1) * 4
-        if np.sum(img_labels_3D[i, :]) > 0:
-            curr_loss = np.linalg.norm(img_labels_3D[i, :] - jornet_joints_global[fingertip_ix, :])
-            loss_jornet_depth += curr_loss
-            print('\t\t\tFinger tip {}: {}\t{} : {}'.format(i, img_labels_3D[i, :],
-                                                            jornet_joints_global[fingertip_ix, :],
-                                                            curr_loss))
-            num_valid_loss += 1
-        else:
-            print('\t\t\tFinger tip {}: {}\t{}'.format(i, 'No label', jornet_joints_global[fingertip_ix, :]))
-    if num_valid_loss > 0:
-        loss_jornet_depth /= num_valid_loss
-        losses_jornet_depth.append(loss_jornet_depth)
-        print('\t\tAverage loss for JORNet fingertips: {}'.format(loss_jornet_depth))
-    else:
-        print('\t\tAverage loss for  JORNet fingertips: {}'.format('No loss'))
+    for i in range(NUM_JOINTS):
+        curr_loss = np.linalg.norm(img_labels_3D[i, :] - jornet_joints_global[i, :])
+        losses_jornet_per_joints_depth[example_ix, i] = curr_loss
+        loss_jornet_depth += curr_loss
+        print('\t\t\tFinger tip {}: {}\t{} : {}'.format(i, img_labels_3D[i, :],
+                                                        jornet_joints_global[i, :],
+                                                        curr_loss))
+    loss_jornet_depth /= NUM_JOINTS
+    losses_jornet_depth_tot.append(loss_jornet_depth)
+    print('\t\tAverage loss for JORNet depth: {}'.format(loss_jornet_depth))
     print_divisor()
 
     print('\tLosses:')
     print('\tHALNet')
-    print('\t\tAverage fingertip loss: {}'.format(np.mean(losses_halnet_fingertips)))
-    print('\t\tStddev fingertip loss: {}'.format(np.std(losses_halnet_fingertips)))
+    print('\t\tAverage joint loss: {}'.format(np.mean(losses_halnet_joints_tot)))
+    print('\t\tStddev joint loss: {}'.format(np.std(losses_halnet_joints_tot)))
+    print('\t\tPer joint loss (average ; std):')
+    halnet_means_per_joint = [0.] * (NUM_JOINTS + 1)
+    halnet_err_per_joint = [0.] * (NUM_JOINTS + 1)
+    for joint_ix in range(NUM_JOINTS):
+        halnet_means_per_joint[joint_ix] = float(np.mean(losses_halnet_per_joints[:, joint_ix]))
+        halnet_err_per_joint[joint_ix] = float(np.std(losses_halnet_per_joints[:, joint_ix])) / 2.
+        print('\t\t\tJoint\t{}:\t{}\t;\t{}'.
+              format(joint_ix,
+                     halnet_means_per_joint[joint_ix],
+                     np.std(losses_halnet_per_joints[:, joint_ix])))
+    halnet_means_per_joint[-1] = np.mean(losses_halnet_joints_tot)
+    halnet_err_per_joint[-1] = np.std(losses_halnet_joints_tot)
     print('\tJORNet')
-    print('\t\tAverage fingertip loss: {}'.format(np.mean(losses_jornet_fingertips)))
-    print('\t\tStddev fingertip loss: {}'.format(np.std(losses_jornet_fingertips)))
-    print('\t\tAverage depth loss: {}'.format(np.mean(losses_jornet_depth)))
-    print('\t\tStddev depth loss: {}'.format(np.std(losses_jornet_depth)))
+    print('\t\tPer joint loss (average ; std):')
+    jornet_means_per_joint = [0.] * (NUM_JOINTS + 1)
+    jornet_err_per_joint = [0.] * (NUM_JOINTS + 1)
+    for joint_ix in range(NUM_JOINTS):
+        jornet_means_per_joint[joint_ix] = float(np.mean(losses_jornet_per_joints[:, joint_ix]))
+        jornet_err_per_joint[joint_ix] = float(np.std(losses_jornet_per_joints[:, joint_ix])) / 2.
+        print('\t\t\tJoint\t{}:\t{}\t;\t{}'.
+              format(joint_ix,
+                     jornet_means_per_joint[joint_ix],
+                     np.std(losses_jornet_per_joints[:, joint_ix])))
+    jornet_means_per_joint[-1] = np.mean(losses_jornet_joints_tot)
+    jornet_err_per_joint[-1] = np.std(losses_jornet_joints_tot)
+
+    print('\t\tPer joint loss depth (average ; std):')
+    jornet_means_per_joint_depth = [0.] * (NUM_JOINTS + 1)
+    jornet_err_per_joint_depth = [0.] * (NUM_JOINTS + 1)
+    for joint_ix in range(NUM_JOINTS):
+        jornet_means_per_joint_depth[joint_ix] = float(np.mean(losses_jornet_per_joints_depth[:, joint_ix]))
+        jornet_err_per_joint_depth[joint_ix] = float(np.std(losses_jornet_per_joints_depth[:, joint_ix])) / 2.
+        print('\t\t\tJoint\t{}:\t{}\t;\t{}'.
+              format(joint_ix,
+                     jornet_means_per_joint_depth[joint_ix],
+                     np.std(losses_jornet_per_joints_depth[:, joint_ix])))
+    jornet_means_per_joint_depth[-1] = np.mean(losses_jornet_depth_tot)
+    jornet_err_per_joint_depth[-1] = np.std(losses_jornet_depth_tot)
+
+    print('\t\tAverage depth loss: {}'.format(np.mean(losses_jornet_depth_tot)))
+    print('\t\tStddev depth loss: {}'.format(np.std(losses_jornet_depth_tot)))
     print_divisor()
+
+    example_ix += 1
+
+num_ranges = 30
+max_range = 30
+frames_per_mm_range = np.zeros((num_ranges, 1))
+losses_jornet_joints_tot_array = np.array(losses_jornet_joints_tot)
+for i in range(num_ranges):
+    ixs = np.array(losses_jornet_joints_tot_array < i * (max_range/num_ranges))
+    frames_per_mm_range[i] = (np.sum(ixs) / len(losses_jornet_joints_tot)) * 100
+    print(frames_per_mm_range[i])
+print_divisor()
+
+visualize.plot_line(frames_per_mm_range, xlabel='Error threshold (pixels)', ylabel='Percentage of frames',
+                    fontsize=30, tickwidth=10, linewidth=10)
+visualize.show()
+
+num_mm_ranges = 60
+max_range = 60
+frames_per_mm_range = np.zeros((num_mm_ranges, 1))
+losses_jornet_depth_tot_array = np.array(losses_jornet_depth_tot)
+for i in range(num_mm_ranges):
+    ixs = np.array(losses_jornet_depth_tot_array < i * (max_range/num_mm_ranges))
+    frames_per_mm_range[i] = (np.sum(ixs) / len(losses_jornet_depth_tot)) * 100
+    print(frames_per_mm_range[i])
+print_divisor()
+
+visualize.plot_line(frames_per_mm_range, xlabel='Error threshold (mm)', ylabel='Percentage of frames',
+                    fontsize=30, tickwidth=10, linewidth=10)
+visualize.show()
+
+visualize.plot_per_joint_bar_chart(halnet_means_per_joint, halnet_err_per_joint, fingertips_only=True, added_avg_value=True,
+                                   horizontal=True, xlabel='Joint dist loss (pixels)',
+                                   ylabel='Joint name', title='{} : HALNet: Loss per Joint (pixels)'.format(dataset_name))
+visualize.show()
+
+visualize.plot_per_joint_bar_chart(jornet_means_per_joint, jornet_err_per_joint, fingertips_only=True, added_avg_value=True,
+                                   horizontal=True, xlabel='Joint dist loss (pixels)',
+                                   ylabel='Joint name', title='{} : JORNet: Loss per Joint (pixel)'.format(dataset_name))
+visualize.show()
+
+visualize.plot_per_joint_bar_chart(jornet_means_per_joint_depth, jornet_err_per_joint_depth, fingertips_only=True, added_avg_value=True,
+                                   horizontal=True, xlabel='Joint dist loss (mm)',
+                                   ylabel='Joint name', title='{} : JORNet: Loss per Joint (depth)'.format(dataset_name))
+visualize.show()

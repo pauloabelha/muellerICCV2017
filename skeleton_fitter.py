@@ -346,7 +346,7 @@ def fit_skeleton(loss_func, target_matrix, bones_lengths, fingers_angles, Theta_
     print('Theta:\n{}'.format(theta))
     return theta, losses
 
-animate_skeleton()
+#animate_skeleton()
 
 Theta_lims = get_Theta_lims()
 bones_lengths = get_bones_lengths()
@@ -373,6 +373,7 @@ hand_seq_fit = get_hand_seq(Theta_fit, bones_lengths, fingers_angles)
 
 hand_matrix = Theta_to_hand_matrix(Theta, bones_lengths, fingers_angles)
 print(hand_matrix)
+
 
 plot_hand_matrix(target_matrix)
 plot_bone_lines(hand_seq_fit)
