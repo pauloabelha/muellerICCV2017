@@ -5,7 +5,7 @@ import torch
 from torch.utils.data.dataset import Dataset
 import converter as conv
 from dataset_handler import load_dataset_split
-from io_image import read_RGB_image, crop_image_get_labels
+from io_image import read_RGB_image, crop_image_get_labels, get_crop_coords
 from scipy.spatial.distance import pdist, squareform
 
 SPLIT_PREFIX_LENGTH = 8
@@ -177,6 +177,41 @@ def _get_data_labels(root_folder, idx, filenamebases, heatmap_res, joint_ixs, fl
     labels = labels_colorspace, labels_jointvec, labels_heatmaps, handroot
     return data, labels
 
+def _get_labels1(root_folder, filenamebase, heatmap_res, joint_ixs, label_suffix='_joint_pos.txt', orig_img_res=(640, 480)):
+    labels_jointspace, labels_colorspace, labels_joint_depth_z = \
+        get_labels_depth_and_color(root_folder, filenamebase, label_suffix=label_suffix)
+    labels_heatmaps, labels_jointvec = \
+        get_labels_heatmaps_and_jointvec(labels_jointspace, labels_colorspace, joint_ixs, heatmap_res)
+    labels_colorspace[:, 0] = labels_colorspace[:, 0] * (heatmap_res[0] / orig_img_res[0])
+    labels_colorspace[:, 1] = labels_colorspace[:, 1] * (heatmap_res[1] / orig_img_res[1])
+    labels_jointvec = torch.from_numpy(labels_jointvec).float()
+    labels_heatmaps = torch.from_numpy(labels_heatmaps).float()
+    return labels_heatmaps, labels_jointvec, labels_colorspace, labels_joint_depth_z
+
+
+def _get_data_labels_boundbox(root_folder, idx, filenamebases, heatmap_res, orig_img_res=(640, 480)):
+    filenamebase = filenamebases[idx]
+    # get image
+    data = _get_data(root_folder, filenamebase, heatmap_res)
+    # get labels for image
+    labels_jointspace, labels_colorspace, labels_joint_depth_z = \
+        get_labels_depth_and_color(root_folder, filenamebase)
+    labels_colorspace[:, 0] = labels_colorspace[:, 0] * (heatmap_res[0] / orig_img_res[0])
+    labels_colorspace[:, 1] = labels_colorspace[:, 1] * (heatmap_res[1] / orig_img_res[1])
+    # get labels for bounding box
+    labels_boundbox = get_crop_coords(labels_colorspace, data)
+    # get labels for heatmaps of bounding boxes' coords
+    labels_boundbox_heatmaps = np.zeros((2, heatmap_res[0], heatmap_res[1]))
+    for i in range(2):
+        corner = np.array([labels_boundbox[i], labels_boundbox[i+2]])
+        labels_boundbox_heatmaps[i] = conv.color_space_label_to_heatmap(corner, heatmap_res)
+    labels_boundbox_heatmaps = torch.from_numpy(labels_boundbox_heatmaps).float()
+    # get label for hand root (in color space)
+    handroot = np.copy(labels_colorspace[0, :])
+    handroot = torch.from_numpy(handroot).float()
+    labels = labels_boundbox_heatmaps, labels_boundbox, handroot
+    return data, labels
+
 class SynthHandsDataset(Dataset):
     type = ''
     root_dir = ''
@@ -228,6 +263,42 @@ class SynthHandsDataset(Dataset):
     def __len__(self):
         return self.length
 
+class SynthHandsDataset_BoundBox(Dataset):
+    type = ''
+    filenamebases = []
+    length = 0
+    num_splits = 0
+    dataset_folder = ''
+    heatmap_res = None
+
+    def __init__(self, root_folder, type_, heatmap_res=(320, 240), split_ix=0,
+                 splitfilename='dataset_split_files.p'):
+        self.type = type_
+        self.num_splits = 0
+        dataset_split_files = load_dataset_split(root_folder=root_folder,
+                                                 splitfilename=splitfilename)
+        if self.type == 'full':
+            self.filenamebases = dataset_split_files['filenamebases']
+        elif self.type == 'split':
+            self.filenamebases = \
+                dataset_split_files['filename_bases_list'][split_ix]
+            self.num_splits = \
+                len(dataset_split_files['filename_bases_list'])
+        else:
+            self.filenamebases = \
+                dataset_split_files['filenamebases_' + self.type]
+        self.length = len(self.filenamebases)
+        self.dataset_folder = root_folder
+        self.heatmap_res = heatmap_res
+
+    def __getitem__(self, idx):
+        return _get_data_labels_boundbox(self.dataset_folder, idx,
+                                         self.filenamebases,
+                                         self.heatmap_res)
+
+    def __len__(self):
+        return self.length
+
 class SynthHandsDataset_prior(SynthHandsDataset):
     type = ''
     root_dir = ''
@@ -266,7 +337,7 @@ class SynthHandsTestDataset(SynthHandsDataset):
 class SynthHandsFullDataset(SynthHandsDataset):
     type = 'full'
 
-def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, crop_hand, verbose, type, batch_size=1):
+def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, crop_hand, verbose, type, batch_size=1):
     list_of_types = ['prior', 'train', 'test', 'valid', 'full']
     if verbose:
         print("Loading synthhands " + type + " dataset...")
@@ -285,6 +356,28 @@ def _get_SynthHands_loader(root_folder, joint_ixs, heatmap_res, dataset_type, cr
         print("\tExample shape: " + str(data_example.shape))
         print("\tLabel heatmap shape: " + str(labels_heatmaps.shape))
         print("\tLabel joint vector shape (N_JOINTS * 3): " + str(labels_jointvec.shape))
+    return dataset_loader
+
+def get_SynthHands_boundbox_loader(root_folder, heatmap_res, verbose, type, batch_size=1):
+    list_of_types = ['prior', 'train', 'test', 'valid', 'full']
+    if verbose:
+        print("Loading synthhands bounding box " + type + " dataset...")
+    if not type in list_of_types:
+        raise BaseException('Type ' + type + ' does not exist. Valid types are: ' + str(list_of_types))
+    dataset = SynthHandsDataset_BoundBox(root_folder=root_folder, type_=type, heatmap_res=heatmap_res)
+    dataset_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False)
+    if verbose:
+        data_example, label_example = dataset[0]
+        labels_boundbox_heatmaps, labels_boundbox,  handroot = label_example
+        print("Synthhands " + type + " dataset loaded with " + str(len(dataset)) + " examples")
+        print("\tExample shape: " + str(data_example.shape))
+        for i in range(2):
+            print("\tLabel bound box heatmaps shape {}: {}".format(i, labels_boundbox_heatmaps[i].shape))
+        print("\tLabel bounding box length: " + str(len(labels_boundbox)))
+        print("\tHand root shape: " + str(handroot.shape))
     return dataset_loader
 
 def get_SynthHands_trainloader(root_folder, joint_ixs=range(21), heatmap_res=(320, 240), dataset_type='normal', crop_hand=False, batch_size=1, verbose=False):

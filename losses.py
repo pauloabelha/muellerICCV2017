@@ -16,18 +16,18 @@ def cross_entropy_loss_p_logq(torchvar_p, torchvar_logq, eps=1e-9):
     batch_size = torchvar_p.data.shape[0]
     return (-((torchvar_p + eps) * torchvar_logq + eps).sum(dim=1).sum(dim=1)).sum() / batch_size
 
-def calculate_loss_HALNet(loss_func, output, target, joint_ixs,
+def calculate_loss_HALNet(loss_func, output, target, heatmap_ixs,
                                        weight_loss_intermed1, weight_loss_intermed2,
                                        weight_loss_intermed3, weight_loss_main, iter_size):
     loss_intermed1 = 0
     loss_intermed2 = 0
     loss_intermed3 = 0
     loss_main = 0
-    for joint_ix in joint_ixs:
-        loss_intermed1 += loss_func(output[0][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_intermed2 += loss_func(output[1][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_intermed3 += loss_func(output[2][:, joint_ix, :, :], target[:, joint_ix, :, :])
-        loss_main += loss_func(output[3][:, joint_ix, :, :], target[:, joint_ix, :, :])
+    for heatmap_ix in heatmap_ixs:
+        loss_intermed1 += loss_func(output[0][:, heatmap_ix, :, :], target[:, heatmap_ix, :, :])
+        loss_intermed2 += loss_func(output[1][:, heatmap_ix, :, :], target[:, heatmap_ix, :, :])
+        loss_intermed3 += loss_func(output[2][:, heatmap_ix, :, :], target[:, heatmap_ix, :, :])
+        loss_main += loss_func(output[3][:, heatmap_ix, :, :], target[:, heatmap_ix, :, :])
     loss = (weight_loss_intermed1 * loss_intermed1) +\
            (weight_loss_intermed2 * loss_intermed2) + \
            (weight_loss_intermed3 * loss_intermed3) + \

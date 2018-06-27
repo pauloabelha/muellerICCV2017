@@ -25,7 +25,7 @@ def load_checkpoint(filename, model_class, use_cuda=False):
     model_state_dict = torch_file['model_state_dict']
     train_vars = torch_file['train_vars']
     params_dict = {}
-    params_dict['joint_ixs'] = train_vars['joint_ixs']
+    params_dict['heatmap_ixs'] = train_vars['heatmap_ixs']
     params_dict['use_cuda'] = train_vars['use_cuda']
     params_dict['cross_entropy'] = train_vars['cross_entropy']
     if not use_cuda:
@@ -64,6 +64,7 @@ def initialize_train_vars(args):
     train_vars['done_training'] = False
     train_vars['start_epoch'] = 0
     train_vars['losses'] = []
+    train_vars['start_iter_mod'] = 1
     train_vars['start_iter'] = 1
     train_vars['num_iter'] = args.num_iter
     train_vars['num_epochs'] = args.num_epochs
@@ -85,7 +86,7 @@ def initialize_train_vars(args):
     train_vars['best_pixel_loss'] = 1e10
     train_vars['best_pixel_loss_sample'] = 1e10
     train_vars['best_model_dict'] = {}
-    train_vars['joint_ixs'] = args.joint_ixs
+    train_vars['heatmap_ixs'] = args.heatmap_ixs
     train_vars['use_cuda'] = args.use_cuda
     train_vars['cross_entropy'] = False
     train_vars['root_folder'] = os.path.dirname(os.path.abspath(__file__)) + '/'
@@ -120,7 +121,7 @@ def parse_args(model_class, random_id=-1):
                         help='Output file for logging')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=True,
                         help='Verbose mode')
-    parser.add_argument('-j', '--joint_ixs', dest='joint_ixs', nargs='+', help='', default=list(range(21)))
+    parser.add_argument('-j', '--heatmap_ixs', dest='heatmap_ixs', nargs='+', help='', default=list(range(21)))
     parser.add_argument('--resnet', dest='load_resnet', action='store_true', default=False,
                         help='Whether to load RESNet weights onto the network when creating it')
     parser.add_argument('--max_mem_batch', type=int, dest='max_mem_batch', default=8,
@@ -132,7 +133,7 @@ def parse_args(model_class, random_id=-1):
                         help='Whether to use cross entropy loss on HALNet')
     parser.add_argument('-r', dest='root_folder', default='', required=True, help='Root folder for dataset')
     args = parser.parse_args()
-    args.joint_ixs = list(map(int, args.joint_ixs))
+    args.heatmap_ixs = list(map(int, args.heatmap_ixs))
 
     train_vars = initialize_train_vars(args)
 
@@ -150,7 +151,7 @@ def parse_args(model_class, random_id=-1):
         train_vars['use_cuda'] = args.use_cuda
         train_vars['cross_entropy'] = args.cross_entropy
         params_dict = {}
-        params_dict['joint_ixs'] = args.joint_ixs
+        params_dict['heatmap_ixs'] = args.heatmap_ixs
         params_dict['use_cuda'] = args.use_cuda
         params_dict['cross_entropy'] = args.cross_entropy
         model = model_class(params_dict)
@@ -296,8 +297,12 @@ def print_header_info(model, dataset_loader, train_vars):
     msg += print_verbose("-----------------------------------------------------------", train_vars['verbose']) + "\n"
     msg += print_verbose("Output filenamebase: " + train_vars['output_filepath'], train_vars['verbose']) + "\n"
     msg += print_verbose("Model info", train_vars['verbose']) + "\n"
-    msg += print_verbose("Number of joints: " + str(len(model.joint_ixs)), train_vars['verbose']) + "\n"
-    msg += print_verbose("Joints indexes: " + str(model.joint_ixs), train_vars['verbose']) + "\n"
+    try:
+        heatmap_ixs = model.heatmap_ixs
+        msg += print_verbose("Joints indexes: " + str(heatmap_ixs), train_vars['verbose']) + "\n"
+        msg += print_verbose("Number of joints: " + str(len(heatmap_ixs)), train_vars['verbose']) + "\n"
+    except:
+        msg += print_verbose("Joints indexes: " + str(model.num_heatmaps), train_vars['verbose']) + "\n"
     msg += print_verbose("-----------------------------------------------------------", train_vars['verbose']) + "\n"
     msg += print_verbose("Max memory batch size: " + str(train_vars['max_mem_batch']), train_vars['verbose']) + "\n"
     msg += print_verbose("Length of dataset (in max mem batch size): " + str(len(dataset_loader)),
@@ -392,13 +397,13 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_b
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     tot_joint_loss_avg = 0
-    for joint_ix in model.joint_ixs:
-        msg += print_verbose("\tJoint index: " + str(joint_ix), verbose) + "\n"
+    for heatmap_ix in range(model.num_heatmaps):
+        msg += print_verbose("\tJoint index: " + str(heatmap_ix), verbose) + "\n"
         mean_joint_pixel_loss = np.mean(
                                  np.array(vars['pixel_losses'])
-                                 [-train_vars['log_interval']:, joint_ix])
+                                 [-train_vars['log_interval']:, heatmap_ix])
         joint_loss_avg += mean_joint_pixel_loss
-        tot_mean_joint_pixel_loss = np.mean(np.array(vars['pixel_losses'])[:, joint_ix])
+        tot_mean_joint_pixel_loss = np.mean(np.array(vars['pixel_losses'])[:, heatmap_ix])
         tot_joint_loss_avg += tot_mean_joint_pixel_loss
         msg += print_verbose("\tTraining set mean error for last " + str(train_vars['log_interval']) +
                              " iterations (average pixel loss): " +
@@ -407,20 +412,20 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_b
         msg += print_verbose("\tTraining set stddev error for last " + str(train_vars['log_interval']) +
                              " iterations (average pixel loss): " +
                              str(np.std(
-                                 np.array(vars['pixel_losses'])[-train_vars['log_interval']:, joint_ix])),
+                                 np.array(vars['pixel_losses'])[-train_vars['log_interval']:, heatmap_ix])),
                              verbose) + "\n"
-        msg += print_verbose("\tThis is the last pixel dist loss: " + str(vars['pixel_losses'][-1][joint_ix]),
+        msg += print_verbose("\tThis is the last pixel dist loss: " + str(vars['pixel_losses'][-1][heatmap_ix]),
                              verbose) + "\n"
         msg += print_verbose("\tTraining set mean error for last " + str(train_vars['log_interval']) +
                              " iterations (average pixel loss of sample): " +
                              str(np.mean(np.array(vars['pixel_losses_sample'])[-train_vars['log_interval']:,
-                                         joint_ix])), verbose) + "\n"
+                                         heatmap_ix])), verbose) + "\n"
         msg += print_verbose("\tTraining set stddev error for last " + str(train_vars['log_interval']) +
                              " iterations (average pixel loss of sample): " +
                              str(np.std(np.array(vars['pixel_losses_sample'])[-train_vars['log_interval']:,
-                                        joint_ix])), verbose) + "\n"
+                                        heatmap_ix])), verbose) + "\n"
         msg += print_verbose(
-            "\tThis is the last pixel dist loss of sample: " + str(vars['pixel_losses_sample'][-1][joint_ix]),
+            "\tThis is the last pixel dist loss of sample: " + str(vars['pixel_losses_sample'][-1][heatmap_ix]),
             verbose) + "\n"
         msg += print_verbose(
             "\t-------------------------------------------------------------------------------------------",
@@ -428,8 +433,8 @@ def print_log_info(model, optimizer, epoch, total_loss, vars, train_vars, save_b
         msg += print_verbose(
             "-------------------------------------------------------------------------------------------",
             verbose) + "\n"
-    joint_loss_avg /= len(model.joint_ixs)
-    tot_joint_loss_avg /= len(model.joint_ixs)
+    joint_loss_avg /= len(model.heatmap_ixs)
+    tot_joint_loss_avg /= len(model.heatmap_ixs)
     msg += print_verbose("-------------------------------------------------------------------------------------------",
                          verbose) + "\n"
     msg += print_verbose("\tCurrent mean pixel loss: " + str(joint_loss_avg), verbose) + '\n'
