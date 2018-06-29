@@ -7,6 +7,7 @@ import converter as conv
 from dataset_handler import load_dataset_split
 from io_image import read_RGB_image, crop_image_get_labels, get_crop_coords
 from scipy.spatial.distance import pdist, squareform
+#import visualize
 
 SPLIT_PREFIX_LENGTH = 8
 
@@ -196,20 +197,39 @@ def _get_data_labels_boundbox(root_folder, idx, filenamebases, heatmap_res, orig
     # get labels for image
     labels_jointspace, labels_colorspace, labels_joint_depth_z = \
         get_labels_depth_and_color(root_folder, filenamebase)
+
     labels_colorspace[:, 0] = labels_colorspace[:, 0] * (heatmap_res[0] / orig_img_res[0])
     labels_colorspace[:, 1] = labels_colorspace[:, 1] * (heatmap_res[1] / orig_img_res[1])
+
     # get labels for bounding box
     labels_boundbox = get_crop_coords(labels_colorspace, data)
+
+
+
     # get labels for heatmaps of bounding boxes' coords
     labels_boundbox_heatmaps = np.zeros((2, heatmap_res[0], heatmap_res[1]))
-    for i in range(2):
-        corner = np.array([labels_boundbox[i], labels_boundbox[i+2]])
-        labels_boundbox_heatmaps[i] = conv.color_space_label_to_heatmap(corner, heatmap_res)
+    corner0 = np.array([labels_boundbox[0], labels_boundbox[1]])
+    corner1 = np.array([labels_boundbox[2], labels_boundbox[3]])
+    #print(corner0)
+    #print(corner1)
+    labels_boundbox_heatmaps[0] = conv.color_space_label_to_heatmap(corner0, heatmap_res, orig_img_res=heatmap_res)
+    labels_boundbox_heatmaps[1] = conv.color_space_label_to_heatmap(corner1, heatmap_res, orig_img_res=heatmap_res)
     labels_boundbox_heatmaps = torch.from_numpy(labels_boundbox_heatmaps).float()
     # get label for hand root (in color space)
     handroot = np.copy(labels_colorspace[0, :])
     handroot = torch.from_numpy(handroot).float()
     labels = labels_boundbox_heatmaps, labels_boundbox, handroot
+
+    #print(labels_colorspace)
+    #print(labels_boundbox)
+    #fig = visualize.plot_image(data.numpy())
+    #visualize.plot_bound_box(labels_boundbox, fig=fig)
+    #visualize.plot_joints(labels_colorspace, fig=fig)
+    #visualize.show()
+
+    #visualize.plot_image_and_heatmap(labels_boundbox_heatmaps[0].numpy(), data=data.numpy())
+    #visualize.plot_image_and_heatmap(labels_boundbox_heatmaps[1].numpy(), data=data.numpy())
+    #visualize.show()
     return data, labels
 
 class SynthHandsDataset(Dataset):
@@ -270,6 +290,10 @@ class SynthHandsDataset_BoundBox(Dataset):
     num_splits = 0
     dataset_folder = ''
     heatmap_res = None
+
+    def get_filenamebase(self, idx):
+        return self.filenamebases[idx]
+
 
     def __init__(self, root_folder, type_, heatmap_res=(320, 240), split_ix=0,
                  splitfilename='dataset_split_files.p'):

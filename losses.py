@@ -33,6 +33,7 @@ def calculate_loss_HALNet(loss_func, output, target, heatmap_ixs,
            (weight_loss_intermed3 * loss_intermed3) + \
            (weight_loss_main * loss_main)
     loss = loss / iter_size
+    print('\nLoss main: {}\n'.format(loss_main))
     return loss
 
 def calculate_loss_HALNet_prior(loss_func, output, target_heatmaps, target_prior, joint_ixs,
